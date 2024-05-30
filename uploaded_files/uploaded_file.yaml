@@ -1,0 +1,7 @@
+free_thresh: 0.14
+image: uploaded_file.pgm
+mode: trinary
+negate: 1
+occupied_thresh: 0.265
+origin: [4.0, 25.0, 667.0]
+resolution: 0.11
