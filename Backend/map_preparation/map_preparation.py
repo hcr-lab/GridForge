@@ -1,10 +1,10 @@
 import os
 import shutil
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 import logging
 import cv2
-from fastapi.staticfiles import StaticFiles
+
 from Backend.map_preparation.data import FileUploaded
 
 app = FastAPI()
@@ -27,10 +27,6 @@ FILENAME = "uploaded_file.jpg"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 IMAGE_PATH = os.path.join(UPLOAD_DIR, FILENAME)
 
-# maybe necessary for zoom
-# app.mount("/uploaded_files", StaticFiles(directory=UPLOAD_DIR), name="uploaded_files")
-
-
 @app.get('/text')
 def show_text(text: str):
     logging.info('method reached')
@@ -49,8 +45,6 @@ async def save_file(b: bytes):
         try:
             if os.path.isfile(file_path) or os.path.islink(file_path):
                 os.unlink(file_path)
-                # deleting files not really working
-                # os.remove(file_path) # Remove the file or link
             elif os.path.isdir(file_path):
                 shutil.rmtree(file_path)  # Remove the directory and all its contents
         except Exception as e:
@@ -75,10 +69,7 @@ async def get_image():
         raise HTTPException(status_code=404, detail="Image not found")
     
 @app.post('/pencil_click')
-async def addPoint(x: float, y: float ):
-    # data = await request.json()
-    # x = data.get("x")
-    # y = data.get("y")
+async def addPoint(x: float, y: float):
     x = int(x)
     y = int(y)
     if x is None or y is None:

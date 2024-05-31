@@ -44,16 +44,12 @@ def init(fastapi_app: FastAPI) -> None:
         def show_upload():
             ui.label('Upload').classes('text-2xl')
             ui.upload(on_upload=on_file_upload, label="Upload a picture")
-
-            # btw, use download with @app.get url to download the file then
             
         # Farbpalette zeigen, Hinzufügen
         @router.add('/pencil') 
         def show_pencil():
             ui.label('Pencil').classes('text-2xl')
             pencil()
-            # TODO: provide different buttons for different thicknesses
-            # TODO: enable zoom
             
         # Löschen von Inhalten aus Bild 
         @router.add('/eraser')
@@ -84,21 +80,15 @@ def init(fastapi_app: FastAPI) -> None:
         # this places the content which should be displayed
         router.frame().classes('w-full p-4 bg-gray-100')
 
-        # NOTE dark mode will be persistent for each user across tabs and server restarts
-        ui.dark_mode().bind_value(app.storage.user, 'dark_mode')
-        ui.checkbox('dark mode').bind_value(app.storage.user, 'dark_mode')
-
     # mount path is homepage, secret is randomly chosen
     ui.run_with(fastapi_app, storage_secret='secret') 
 
 def quality_page_layout():
     pass
 
-# TODO: format yaml correct
 # TODO: enable possibility to change file names
 def download_page_layout(): 
     global yaml_parameters
-    # origin = Origin()
     if visibility:
         set_image_name_for_yaml()
         with ui.column():
@@ -165,27 +155,16 @@ def pencil() -> None:
     if visibility:
         ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_pencil, events=['mousedown'], cross='red')
         reload_image(ii)
-            # ui.button('force reload', on_click=ii.force_reload())
-    #         zoom_image = Zoom()
-    #         ui.button('Zoom In', on_click=zoom_image.zoomIn())
-    #         ui.button('Zoom Out', on_click=zoom_image.zoomOut())
     else:
         no_pic
-        # ui.add_body_html(zoomable_image_html)
 
 def eraser() -> None:
     global ii
     if visibility:
         ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_eraser, events=['mousedown'], cross='red')
         reload_image(ii)
-            # ui.button('force reload', on_click=ii.force_reload())
-    #         zoom_image = Zoom()
-    #         ui.button('Zoom In', on_click=zoom_image.zoomIn())
-    #         ui.button('Zoom Out', on_click=zoom_image.zoomOut())
     else:
-        no_pic()
-    # ui.add_body_html(zoomable_image_html)
-    
+        no_pic()    
     
 # TODO: File type check
 async def on_file_upload(e: events.UploadEventArguments):
@@ -236,50 +215,3 @@ async def handle_eraser(e: events.MouseEventArguments):
 def reload_image(ii):
     ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{IMAGE_PATH}?{time.time()}'))
 
-            
-# # picture now shown, but zoom not possible
-# zoomable_image_html = """
-# <!DOCTYPE html>
-# <html lang="en">
-# <body>
-#     <button onclick="zoomIn()">Zoom In</button>
-#     <button onclick="zoomOut()">Zoom Out</button>
-
-#     <script>
-#         (function() {
-#             let scale = 1;
-#             const image = document.querySelector('[data-ref="img"]');
-#             if (img) {
-#                 console.log('HTML: Image element found:', img);
-#                 this.img.style.transition = 'transform 0.2s'; // Add smooth transition
-#             } else {
-#                 console.log('Image element not found');
-#             }
-#             window.zoomIn = function() {
-#                 scale += 0.1;
-#                 image.style.transform = `scale(${scale})`;
-#             }
-
-#             window.zoomOut = function() {
-#                 scale = Math.max(1, scale - 0.1);
-#                 image.style.transform = `scale(${scale})`;
-#             }
-#         })();
-#     </script>
-# </body>
-# </html>
-# """
-
-
-    
-def handle_show_text():
-    response = mp.show_text("method handle show text is called call")
-    
-    # easy access to status code
-    ui.notify(f'statuscode of json was {response.status_code}')
-    # json package not really necessary
-    ui.notify(f'json loads {json.loads(response.body)}')
-    # easiest way to get to the content of the json with initial b
-    ui.notify(response.body)
-    # without the initial b
-    ui.notify(response.body.decode())
