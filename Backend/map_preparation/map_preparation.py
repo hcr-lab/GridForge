@@ -1,6 +1,6 @@
 import os
 import shutil
-from fastapi import FastAPI, File, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 import logging
 import cv2

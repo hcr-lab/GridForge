@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
-from numbers import Number
 import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
 from Frontend.router import Router
-import uuid
 import Backend.map_preparation.map_preparation as mp
 import Backend.map_creation.map_creation as mc
 import json
 import os
-from Frontend.zoom_image import Zoom
-from Frontend.yaml_parameters import Yaml_parameters, Origin
+from Frontend.preparation_parameters import Preparation_parameters
+from Frontend.yaml_parameters import Yaml_parameters
 import time 
-from pydantic_yaml import to_yaml_str, to_yaml_file
+from pydantic_yaml import to_yaml_str
 
 # global variables
 site_plan = any
@@ -22,6 +20,7 @@ processed_image = any
 visibility = True
 origin = None
 yaml_parameters = Yaml_parameters()
+preparation_parameters = Preparation_parameters()
 
 UPLOAD_DIR = "uploaded_files"
 PICTURE_NAME = "uploaded_file.jpg"
@@ -92,7 +91,6 @@ def download_page_layout():
     if visibility:
         set_image_name_for_yaml()
         with ui.column():
-            # slider for thickness of lines, possible solution
             ui.label('Resolution').classes('text-xl')
             resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution')
             ui.label().bind_text_from(resolution, 'value')
@@ -163,6 +161,10 @@ def eraser() -> None:
     if visibility:
         ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_eraser, events=['mousedown'], cross='red')
         reload_image(ii)
+        ui.label('Resolution').classes('text-xl')
+        thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
+        ui.label().bind_text_from(thickness, 'value')
+
     else:
         no_pic()    
     
@@ -204,13 +206,11 @@ async def handle_pencil(e: events.MouseEventArguments):
     x = e.image_x
     y = e.image_y
     await mp.addPoint(x,y)
-    # reload_image()
     
 async def handle_eraser(e: events.MouseEventArguments):
     x = e.image_x
     y = e.image_y
     await mp.erasePoint(x,y)
-    # reload_image()
 
 def reload_image(ii):
     ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{IMAGE_PATH}?{time.time()}'))
