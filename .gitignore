@@ -164,3 +164,4 @@ cython_debug/
 # own stuff
 .vscode
 .nicegui
+uploaded_files

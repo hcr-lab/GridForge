@@ -1,12 +1,8 @@
-import io
-import shutil
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import FastAPI
 import os
-import pydantic_yaml
-import pydantic
+
 from Backend.map_preparation.data import FileUploaded
-from nicegui import ui
 import logging
 
 app = FastAPI()
@@ -71,8 +67,3 @@ def process_yaml_string(yaml_string: str):
             output_lines.append(f"{key}: {data[key]}")
     
     return '\n'.join(output_lines)
-# use current download page as page for postprocessing
-# different page for downloading and quality check 
-# in backend write yaml to folder and give back location
-# in frontend download location
-# change download url of both downloads from hardcoded variant to variant checking for the response
