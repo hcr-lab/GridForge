@@ -17,6 +17,7 @@ from pydantic_yaml import to_yaml_str
 site_plan = any
 ii = any
 processed_image = any
+thickness = 3
 visibility = True
 origin = None
 yaml_parameters = Yaml_parameters()
@@ -150,18 +151,23 @@ def no_pic():
 # TODO: allow dragging of mouse to multiple locations 
 def pencil() -> None:
     global ii
+    global preparation_parameters
     if visibility:
         ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_pencil, events=['mousedown'], cross='red')
         reload_image(ii)
+        ui.label('Thickness').classes('text-xl')
+        thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
+        ui.label().bind_text_from(thickness, 'value')
     else:
         no_pic
 
 def eraser() -> None:
     global ii
+    global preparation_parameters
     if visibility:
         ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_eraser, events=['mousedown'], cross='red')
         reload_image(ii)
-        ui.label('Resolution').classes('text-xl')
+        ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
         ui.label().bind_text_from(thickness, 'value')
 
@@ -205,12 +211,14 @@ async def fetch_image():
 async def handle_pencil(e: events.MouseEventArguments):
     x = e.image_x
     y = e.image_y
-    await mp.addPoint(x,y)
+    thickness = preparation_parameters.thickness
+    await mp.addPoint(x,y, thickness)
     
 async def handle_eraser(e: events.MouseEventArguments):
     x = e.image_x
     y = e.image_y
-    await mp.erasePoint(x,y)
+    thickness = preparation_parameters.thickness
+    await mp.erasePoint(x,y, thickness)
 
 def reload_image(ii):
     ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{IMAGE_PATH}?{time.time()}'))

@@ -69,7 +69,7 @@ async def get_image():
         raise HTTPException(status_code=404, detail="Image not found")
     
 @app.post('/pencil_click')
-async def addPoint(x: float, y: float):
+async def addPoint(x: float, y: float, thickness: int):
     x = int(x)
     y = int(y)
     if x is None or y is None:
@@ -82,7 +82,7 @@ async def addPoint(x: float, y: float):
     image = cv2.imread(IMAGE_PATH)
 
     # Modify the image based on click (e.g., draw a circle at the clicked position)
-    cv2.circle(image, (x, y), 3, (0, 0, 0), -1)  # Red circle
+    cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # Red circle
 
     # Save the modified image
     cv2.imwrite(IMAGE_PATH, image)
@@ -90,7 +90,7 @@ async def addPoint(x: float, y: float):
     return {"message": "Image modified successfully", "x": x, "y": y}
 
 @app.post('/eraser_click')
-async def erasePoint(x: float, y: float ):
+async def erasePoint(x: float, y: float, thickness: int):
     x = int(x)
     y = int(y)
     if x is None or y is None:
@@ -103,7 +103,7 @@ async def erasePoint(x: float, y: float ):
     image = cv2.imread(IMAGE_PATH)
 
     # Modify the image based on click (e.g., draw a circle at the clicked position)
-    cv2.circle(image, (x, y), 3, (255, 255, 255), -1)  # Red circle
+    cv2.circle(image, (x, y), thickness, (255, 255, 255), -1)  # Red circle
 
     # Save the modified image
     cv2.imwrite(IMAGE_PATH, image)
