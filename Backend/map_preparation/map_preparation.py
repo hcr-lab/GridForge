@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = "uploaded_files"
 FILENAME = "uploaded_file.jpg"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-IMAGE_PATH = os.path.join(UPLOAD_DIR, FILENAME)
+image_path = os.path.join(UPLOAD_DIR, FILENAME)
 
 @app.get('/text')
 def show_text(text: str):
@@ -35,10 +35,12 @@ def show_text(text: str):
 
 # TODO: provide function to save image as pgm before it is processed 
 @app.post('/save')
-async def save_file(b: bytes):
+async def save_file(b: bytes, name: str):
     # file is not correctly overwritten
+    global image_path
+    image_path = os.path.join(UPLOAD_DIR, name)
+    logging.info(f'image path set to {image_path}')
 
-    location = os.path.join(UPLOAD_DIR, FILENAME)
     # Iterate over the files and directories in the specified directory
     for filename in os.listdir(UPLOAD_DIR):
         file_path = os.path.join(UPLOAD_DIR, filename)
@@ -51,20 +53,20 @@ async def save_file(b: bytes):
             return JSONResponse(content=FileUploaded(success=False,
                                    message=f'Failed to delete {file_path}. Reason: {e}'))
             
-    with open(IMAGE_PATH, "wb") as buffer:
+    with open(image_path, "wb") as buffer:
         buffer.write(b)
 
     response_body = FileUploaded(filename=FILENAME,
-                           location=location,
+                           location=image_path,
                            success=True,
-                           message=f'Upload of {FILENAME} in {location} successful')
+                           message=f'Upload of {FILENAME} in {image_path} successful')
     return JSONResponse(content=response_body.model_dump()) 
     
 
 @app.get("/image")
 async def get_image():
-    if os.path.exists(IMAGE_PATH):
-        return FileResponse(IMAGE_PATH)
+    if os.path.exists(image_path):
+        return FileResponse(image_path)
     else:
         raise HTTPException(status_code=404, detail="Image not found")
     
@@ -75,17 +77,17 @@ async def addPoint(x: float, y: float, thickness: int):
     if x is None or y is None:
         raise HTTPException(status_code=400, detail="Coordinates not provided")
 
-    if not os.path.exists(IMAGE_PATH):
+    if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
     # Load the image
-    image = cv2.imread(IMAGE_PATH)
+    image = cv2.imread(image_path)
 
     # Modify the image based on click (e.g., draw a circle at the clicked position)
     cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # Red circle
 
     # Save the modified image
-    cv2.imwrite(IMAGE_PATH, image)
+    cv2.imwrite(image_path, image)
 
     return {"message": "Image modified successfully", "x": x, "y": y}
 
@@ -96,16 +98,16 @@ async def erasePoint(x: float, y: float, thickness: int):
     if x is None or y is None:
         raise HTTPException(status_code=400, detail="Coordinates not provided")
 
-    if not os.path.exists(IMAGE_PATH):
+    if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
     # Load the image
-    image = cv2.imread(IMAGE_PATH)
+    image = cv2.imread(image_path)
 
     # Modify the image based on click (e.g., draw a circle at the clicked position)
     cv2.circle(image, (x, y), thickness, (255, 255, 255), -1)  # Red circle
 
     # Save the modified image
-    cv2.imwrite(IMAGE_PATH, image)
+    cv2.imwrite(image_path, image)
 
     return {"message": "Image modified successfully", "x": x, "y": y}

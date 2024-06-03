@@ -22,12 +22,13 @@ visibility = True
 origin = None
 yaml_parameters = Yaml_parameters()
 preparation_parameters = Preparation_parameters()
+picture_name = 'uploaded_file.jpg'
 
 UPLOAD_DIR = "uploaded_files"
-PICTURE_NAME = "uploaded_file.jpg"
+# PICTURE_NAME = "uploaded_file.jpg"
 YAML_NAME = "uploaded_file.yaml"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-IMAGE_PATH = os.path.join(UPLOAD_DIR, PICTURE_NAME)
+IMAGE_PATH = os.path.join(UPLOAD_DIR, picture_name)
 YAML_PATH = os.path.join(UPLOAD_DIR, YAML_NAME)
 
 # make directory with uploaded files accessible to frontend
@@ -42,7 +43,10 @@ def init(fastapi_app: FastAPI) -> None:
         # Hochladen des Bilds ermöglichen
         @router.add('/')
         def show_upload():
+            global picture_name
+            global yaml_parameters
             ui.label('Upload').classes('text-2xl')
+            ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image')
             ui.upload(on_upload=on_file_upload, label="Upload a picture")
             
         # Farbpalette zeigen, Hinzufügen
@@ -131,7 +135,7 @@ async def download_map_files() -> None:
                 if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
                     ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
                     print(response_body_dict)  # Print the dictionary of the JSON response
-                    ui.download(f'{UPLOAD_DIR}/{PICTURE_NAME}?{time.time()}')
+                    ui.download(f'{UPLOAD_DIR}/{picture_name}?{time.time()}')
                     ui.download(f'{UPLOAD_DIR}/{YAML_NAME}')
                 else:
                     ui.notify("Error: Response is not a dictionary")
@@ -177,9 +181,15 @@ def eraser() -> None:
 # TODO: File type check
 async def on_file_upload(e: events.UploadEventArguments):
     global visibility
+    global yaml_parameters
     # access events via the event.Eventtype stuff and send content of the event to backend
-    response = await mp.save_file(e.content.read())
-    
+    if len(e.name) > 0: 
+        e.name = yaml_parameters.image
+    else:
+        e.name = picture_name
+    ui.notify(f'name is {e.name}')
+
+    response = await mp.save_file(e.content.read(), e.name)
     if response.status_code == 200:
         try:
             response_body = response.body  # Get the response body as a string
