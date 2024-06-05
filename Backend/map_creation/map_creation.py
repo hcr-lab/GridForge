@@ -32,6 +32,7 @@ async def download_yaml(yaml_string: str):
     # logging works this way
     processed_string = process_yaml_string(yaml_string)
     logger.info(f"processed yaml string is {processed_string}")    
+    logger.info(f"file path is {yaml_file_path}")    
 
 
     with open(yaml_file_path, "w") as yaml_file:
@@ -57,8 +58,10 @@ def process_yaml_string(yaml_string: str):
             key, value = line.split(': ', 1)
             data[key] = value
     
-    file_name = data.get('image')
-    yaml_file_path = os.path.join(UPLOAD_DIR, file_name)
+    # change image name to yaml file 
+    base_name, _ = os.path.splitext(data.get('image'))
+    yaml_file = base_name + '.yaml'
+    yaml_file_path = os.path.join(UPLOAD_DIR, yaml_file)
     logger.info(f'name of file set to {file_name}')
     
     # Modify the values as needed
