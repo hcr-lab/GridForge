@@ -119,7 +119,6 @@ def process_image_name(e: events.UploadEventArguments):
 def download_page_layout(): 
     global yaml_parameters
     if visibility:
-        set_image_name_for_yaml()
         with ui.column():
             ui.label('Resolution').classes('text-xl')
             resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution')
@@ -154,7 +153,7 @@ async def download_map_files() -> None:
     
     yaml_string = to_yaml_str(yaml_parameters)
     ui.notify(yaml_string)
-    response = await mc.download_yaml(yaml_string)
+    response = await mc.download_files(yaml_string)
     
     if response.status_code == 200:
             try:
@@ -171,10 +170,6 @@ async def download_map_files() -> None:
                 ui.notify("Error: Failed to decode JSON response")
     else:
         ui.notify(f"Error: {response_body}")
-    
-# TODO: set name for yaml correctly
-def set_image_name_for_yaml():
-    pass
 
 def no_pic():
     ui.notify("No picture uploaded, please go to Upload and upload a file")
