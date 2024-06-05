@@ -183,27 +183,29 @@ def no_pic():
 # TODO: write only one function and give on mouse handler as a parameter
 # TODO: allow dragging of mouse to multiple locations 
 def pencil() -> None:
-    global ii
-    global preparation_parameters
-    global image_path
+    global ii, preparation_parameters, image_path
     if visibility:
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
         reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
         ui.label().bind_text_from(thickness, 'value')
+        ui.label('Type of processing').classes('text-xl')
+        ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
+
     else:
         no_pic
 
 def eraser() -> None:
-    global ii
-    global preparation_parameters
+    global ii, preparation_parameters, image_path
     if visibility:
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
         reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
         ui.label().bind_text_from(thickness, 'value')
+        ui.label('Type of processing').classes('text-xl')
+        ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
 
     else:
         no_pic()    
@@ -266,15 +268,29 @@ async def pencil_line(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
 
-def pencil_point(e: events.MouseEventArguments):
-    pass        
+async def pencil_point(e: events.MouseEventArguments):
+    # only listens to mousedown to prevent to many dots from spawning
+    if e.type == 'mousedown':
+        x = e.image_x
+        y = e.image_y
+        thickness = preparation_parameters.thickness
+        await mp.addPoint(x,y, thickness)
+
+async def pencil_square(e: events.MouseEventArguments):
+    # add method to draw a square
+    pass
+
+# TODO: currently nothing happens, check via notify
 # clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
 async def handle_pencil(e: events.MouseEventArguments):
-    if line:
+    if preparation_parameters.preparation_type == 'line':
         pencil_line(e)
-    elif point:
+    elif preparation_parameters.preparation_type == 'point':
         pencil_point(e)
-        
+    elif preparation_parameters.preparation_type == 'square':
+        pencil_square(e)    
+    else:
+        ui.notify(f'no preparation type chosen')
             
 async def handle_eraser(e: events.MouseEventArguments):
     x = e.image_x
