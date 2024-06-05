@@ -69,9 +69,30 @@ async def get_image():
         return FileResponse(image_path)
     else:
         raise HTTPException(status_code=404, detail="Image not found")
+
+@app.post('/pencil_point')
+async def addPoint(x: float, y: float, thickness: int):
+    x = int(x)
+    y = int(y)
     
-@app.post('/pencil_click')
-async def addPoint(start_point: tuple, end_point: tuple, thickness: int):
+    if x is None or y is None:
+        raise HTTPException(status_code=400, detail="Coordinates not provided")
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Load the image
+    image = cv2.imread(image_path)
+
+    # Modify the image based on click (e.g., draw a circle at the clicked position)
+    cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # black circle
+        
+    # Save the modified image
+    cv2.imwrite(image_path, image)
+
+    return {"message": "Image modified successfully"}    
+
+@app.post('/pencil_line')
+async def addLine(start_point: tuple, end_point: tuple, thickness: int):
     # x = int(x)
     # y = int(y)
     # if x is None or y is None:

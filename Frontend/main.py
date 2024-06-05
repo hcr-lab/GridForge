@@ -250,8 +250,7 @@ async def flow():
     await clicked.wait()
     ui.notify('You clicked me!')
 
-# clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
-async def handle_pencil(e: events.MouseEventArguments):
+async def pencil_line(e: events.MouseEventArguments):
     global start_point, end_point, clicked
 
     if e.type == 'mousedown':
@@ -263,10 +262,20 @@ async def handle_pencil(e: events.MouseEventArguments):
     await clicked.wait()
     if start_point and end_point:
         thickness = preparation_parameters.thickness
-        await mp.addPoint(start_point, end_point, thickness)
+        await mp.addLine(start_point, end_point, thickness)
     else:
         ui.notify('start and endpoint not set correctly')
-    
+
+def pencil_point(e: events.MouseEventArguments):
+    pass        
+# clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
+async def handle_pencil(e: events.MouseEventArguments):
+    if line:
+        pencil_line(e)
+    elif point:
+        pencil_point(e)
+        
+            
 async def handle_eraser(e: events.MouseEventArguments):
     x = e.image_x
     y = e.image_y
