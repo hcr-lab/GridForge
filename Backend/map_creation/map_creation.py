@@ -104,6 +104,8 @@ def convert_to_pgm():
         # Save the image in PGM format
         output_path = os.path.join(UPLOAD_DIR, output_file)
         logger.info(f'Attempting to write image to {output_path}')
+        
+        # TODO: Check if pgm needs to be processed wrt mode and negate or if this happens directly in ros!
         success = cv2.imwrite(output_path, img)
         
         if success:

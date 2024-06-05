@@ -71,25 +71,31 @@ async def get_image():
         raise HTTPException(status_code=404, detail="Image not found")
     
 @app.post('/pencil_click')
-async def addPoint(x: float, y: float, thickness: int):
-    x = int(x)
-    y = int(y)
-    if x is None or y is None:
-        raise HTTPException(status_code=400, detail="Coordinates not provided")
-
+async def addPoint(start_point: tuple, end_point: tuple, thickness: int):
+    # x = int(x)
+    # y = int(y)
+    # if x is None or y is None:
+    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
+    logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
     # Load the image
     image = cv2.imread(image_path)
 
-    # Modify the image based on click (e.g., draw a circle at the clicked position)
-    cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # Red circle
-
+    # # Modify the image based on click (e.g., draw a circle at the clicked position)
+    # cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # Red circle
+    
+    # Convert points to integers
+    start_point = (int(start_point[0]), int(start_point[1]))
+    end_point = (int(end_point[0]), int(end_point[1]))
+    
+    cv2.line(image, start_point, end_point, (0, 0, 0), thickness=thickness)
+    
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully", "x": x, "y": y}
+    return {"message": "Image modified successfully"}
 
 @app.post('/eraser_click')
 async def erasePoint(x: float, y: float, thickness: int):

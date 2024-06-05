@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
@@ -25,6 +26,9 @@ preparation_parameters = Preparation_parameters()
 picture_name = 'uploaded_file'
 complete_yaml = 'uploaded_file.yaml'
 complete_picture = ' uploaded_file.jpg'
+start_point = tuple
+end_point = tuple
+clicked = asyncio.Event()
 
 UPLOAD_DIR = "uploaded_files"
 
@@ -48,6 +52,8 @@ def init(fastapi_app: FastAPI) -> None:
             ui.label('Upload').classes('text-2xl')
             ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image')
             ui.upload(on_upload=on_file_upload, label="Upload a picture")
+            ui.button('Start flow', on_click=flow)
+
             
         # Farbpalette zeigen, Hinzufügen
         @router.add('/pencil') 
@@ -173,7 +179,7 @@ async def download_map_files() -> None:
 
 def no_pic():
     ui.notify("No picture uploaded, please go to Upload and upload a file")
-
+    
 # TODO: write only one function and give on mouse handler as a parameter
 # TODO: allow dragging of mouse to multiple locations 
 def pencil() -> None:
@@ -181,7 +187,7 @@ def pencil() -> None:
     global preparation_parameters
     global image_path
     if visibility:
-        ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown'], cross='red')
+        ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
         reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
@@ -193,7 +199,7 @@ def eraser() -> None:
     global ii
     global preparation_parameters
     if visibility:
-        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown'], cross='red')
+        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
         reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
@@ -238,12 +244,29 @@ async def fetch_image():
             return complete_picture
         else:
             ui.notify("Failed to load image")
+async def flow():
+    clicked = asyncio.Event()
+    ui.button('Click me', on_click=clicked.set)
+    await clicked.wait()
+    ui.notify('You clicked me!')
 
+# clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
 async def handle_pencil(e: events.MouseEventArguments):
-    x = e.image_x
-    y = e.image_y
-    thickness = preparation_parameters.thickness
-    await mp.addPoint(x,y, thickness)
+    global start_point, end_point, clicked
+
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        thickness = preparation_parameters.thickness
+        ui.notify('mp add point method is reached')
+        await mp.addPoint(start_point, end_point, thickness)
+    else:
+        ui.notify('start and endpoint not set correctly')
     
 async def handle_eraser(e: events.MouseEventArguments):
     x = e.image_x
