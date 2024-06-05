@@ -8,8 +8,8 @@ import logging
 app = FastAPI()
 
 UPLOAD_DIR = "uploaded_files"
-FILENAME = "uploaded_file.yaml"
-YAML_FILE_PATH = os.path.join(UPLOAD_DIR, FILENAME)
+file_name = "uploaded_file.yaml"
+yaml_file_path = os.path.join(UPLOAD_DIR, file_name)
 
 # Set up logging configuration
 logging.basicConfig(
@@ -26,21 +26,26 @@ logger = logging.getLogger(__name__)
 
 @app.get("/download_yaml", response_class=JSONResponse)
 async def download_yaml(yaml_string: str):
+    global yaml_file_path
+    
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     # logging works this way
     processed_string = process_yaml_string(yaml_string)
     logger.info(f"processed yaml string is {processed_string}")    
 
-    with open(YAML_FILE_PATH, "w") as yaml_file:
+
+    with open(yaml_file_path, "w") as yaml_file:
         yaml_file.write(processed_string)
     
-    response_body = FileUploaded(filename=FILENAME,
-                           location=YAML_FILE_PATH,
+    response_body = FileUploaded(filename=file_name,
+                           location=yaml_file_path,
                            success=True,
-                           message=f'Upload of {FILENAME} in {YAML_FILE_PATH} successful')
+                           message=f'Upload of {file_name} in {yaml_file_path} successful')
     return JSONResponse(content=response_body.model_dump()) 
 
 def process_yaml_string(yaml_string: str):
+    global file_name
+    global yaml_file_path
     lines = yaml_string.split('\n')
     
     # Create a dictionary to store the parsed values
@@ -51,6 +56,10 @@ def process_yaml_string(yaml_string: str):
         if line.strip():  # Skip any empty lines
             key, value = line.split(': ', 1)
             data[key] = value
+    
+    file_name = data.get('image')
+    yaml_file_path = os.path.join(UPLOAD_DIR, file_name)
+    logger.info(f'name of file set to {file_name}')
     
     # Modify the values as needed
     if 'negate' in data:
