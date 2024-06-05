@@ -263,7 +263,6 @@ async def handle_pencil(e: events.MouseEventArguments):
     await clicked.wait()
     if start_point and end_point:
         thickness = preparation_parameters.thickness
-        ui.notify('mp add point method is reached')
         await mp.addPoint(start_point, end_point, thickness)
     else:
         ui.notify('start and endpoint not set correctly')
