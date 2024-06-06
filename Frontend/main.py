@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
@@ -22,13 +23,17 @@ visibility = True
 origin = None
 yaml_parameters = Yaml_parameters()
 preparation_parameters = Preparation_parameters()
+picture_name = 'uploaded_file'
+complete_yaml = 'uploaded_file.yaml'
+complete_picture = ' uploaded_file.jpg'
+start_point = tuple
+end_point = tuple
+clicked = asyncio.Event()
 
 UPLOAD_DIR = "uploaded_files"
-PICTURE_NAME = "uploaded_file.jpg"
-YAML_NAME = "uploaded_file.yaml"
+
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-IMAGE_PATH = os.path.join(UPLOAD_DIR, PICTURE_NAME)
-YAML_PATH = os.path.join(UPLOAD_DIR, YAML_NAME)
+image_path = os.path.join(UPLOAD_DIR, complete_picture)
 
 # make directory with uploaded files accessible to frontend
 app.add_static_files(url_path='/uploaded_files', local_directory='uploaded_files')
@@ -42,7 +47,10 @@ def init(fastapi_app: FastAPI) -> None:
         # Hochladen des Bilds ermöglichen
         @router.add('/')
         def show_upload():
+            global picture_name
+            global yaml_parameters
             ui.label('Upload').classes('text-2xl')
+            ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image')
             ui.upload(on_upload=on_file_upload, label="Upload a picture")
             
         # Farbpalette zeigen, Hinzufügen
@@ -56,7 +64,6 @@ def init(fastapi_app: FastAPI) -> None:
         def show_eraser():
             ui.label('Eraser').classes('text-2xl')
             eraser()
-            # TODO: provide different buttons for different thicknesses
             # TODO: enable zoom
             
         @router.add('/download')
@@ -73,7 +80,7 @@ def init(fastapi_app: FastAPI) -> None:
         with ui.row():
             ui.button('Upload', on_click=lambda: router.open(show_upload)).classes('w-32')
             ui.button('Pencil', on_click=lambda: router.open(show_pencil)).classes('w-32')
-            ui.button('Rubber', on_click=lambda: router.open(show_eraser)).classes('w-32')
+            ui.button('Eraser', on_click=lambda: router.open(show_eraser)).classes('w-32')
             ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32')
             ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32')
             
@@ -86,11 +93,36 @@ def init(fastapi_app: FastAPI) -> None:
 def quality_page_layout():
     pass
 
-# TODO: enable possibility to change file names
+def process_image_name(e: events.UploadEventArguments):
+    global complete_yaml
+    global complete_picture
+    global image_path
+    # get the file extension from the uploaded picture and save the file extension to 
+    _, file_extension = os.path.splitext(e.name)
+    # file type check
+    if file_extension not in ('.jpg', '.png', '.pgm'):
+        ui.notify('wrong filetype, please enter only jpg, png or pgm files')
+        return False
+    else:
+        # if something is typed into textbox, use it for both picture and yaml
+        if len(yaml_parameters.image) > 0:
+            complete_picture = "".join([yaml_parameters.image, file_extension])
+            complete_yaml = "".join([yaml_parameters.image, '.yaml'])
+            yaml_parameters.image = complete_picture
+            e.name = complete_picture
+            image_path = os.path.join(UPLOAD_DIR, complete_picture)
+        # else use default picture name for both
+        else:
+            complete_picture = "".join([picture_name, file_extension]) 
+            complete_yaml = "".join([picture_name, '.yaml'])
+            yaml_parameters.image = complete_picture
+            e.name = complete_picture
+            image_path = os.path.join(UPLOAD_DIR, complete_picture)
+        return True
+    
 def download_page_layout(): 
     global yaml_parameters
     if visibility:
-        set_image_name_for_yaml()
         with ui.column():
             ui.label('Resolution').classes('text-xl')
             resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution')
@@ -120,9 +152,12 @@ def download_page_layout():
         
 async def download_map_files() -> None:
     global yaml_parameters
+    global complete_yaml
+    global complete_picture
+    
     yaml_string = to_yaml_str(yaml_parameters)
     ui.notify(yaml_string)
-    response = await mc.download_yaml(yaml_string)
+    response = await mc.download_files(yaml_string)
     
     if response.status_code == 200:
             try:
@@ -131,45 +166,44 @@ async def download_map_files() -> None:
                 if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
                     ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
                     print(response_body_dict)  # Print the dictionary of the JSON response
-                    ui.download(f'{UPLOAD_DIR}/{PICTURE_NAME}?{time.time()}')
-                    ui.download(f'{UPLOAD_DIR}/{YAML_NAME}')
+                    ui.download(f'{UPLOAD_DIR}/{complete_picture}?{time.time()}')
+                    ui.download(f'{UPLOAD_DIR}/{complete_yaml}')
                 else:
                     ui.notify("Error: Response is not a dictionary")
             except json.JSONDecodeError:
                 ui.notify("Error: Failed to decode JSON response")
     else:
         ui.notify(f"Error: {response_body}")
-    
-# TODO: set name for yaml correctly
-def set_image_name_for_yaml():
-    pass
 
 def no_pic():
     ui.notify("No picture uploaded, please go to Upload and upload a file")
-
+    
 # TODO: write only one function and give on mouse handler as a parameter
 # TODO: allow dragging of mouse to multiple locations 
 def pencil() -> None:
-    global ii
-    global preparation_parameters
+    global ii, preparation_parameters, image_path
     if visibility:
-        ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_pencil, events=['mousedown'], cross='red')
+        ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
         reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
         ui.label().bind_text_from(thickness, 'value')
+        ui.label('Type of processing').classes('text-xl')
+        ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
+
     else:
         no_pic
 
 def eraser() -> None:
-    global ii
-    global preparation_parameters
+    global ii, preparation_parameters, image_path
     if visibility:
-        ii = ui.interactive_image(IMAGE_PATH, on_mouse=handle_eraser, events=['mousedown'], cross='red')
+        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
         reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
         ui.label().bind_text_from(thickness, 'value')
+        ui.label('Type of processing').classes('text-xl')
+        ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
 
     else:
         no_pic()    
@@ -177,49 +211,138 @@ def eraser() -> None:
 # TODO: File type check
 async def on_file_upload(e: events.UploadEventArguments):
     global visibility
-    # access events via the event.Eventtype stuff and send content of the event to backend
-    response = await mp.save_file(e.content.read())
+    global yaml_parameters
     
-    if response.status_code == 200:
-        try:
-            response_body = response.body  # Get the response body as a string
-            response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
-            if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
-                ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
-                print(response_body_dict)  # Print the dictionary of the JSON response
-                visibility = True
-            else:
-                ui.notify("Error: Response is not a dictionary")
+    # check if correct image type was uploaded
+    if process_image_name(e):
+    # access events via the event.Eventtype stuff and send content of the event to backend
+        response = await mp.save_file(e.content.read(), e.name)
+        if response.status_code == 200:
+            try:
+                response_body = response.body  # Get the response body as a string
+                response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
+                if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
+                    ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
+                    print(response_body_dict)  # Print the dictionary of the JSON response
+                    visibility = True
+                else:
+                    ui.notify("Error: Response is not a dictionary")
+                    visibility = False
+            except json.JSONDecodeError:
+                ui.notify("Error: Failed to decode JSON response")
                 visibility = False
-        except json.JSONDecodeError:
-            ui.notify("Error: Failed to decode JSON response")
+        else:
+            ui.notify(f"Error: {response_body}")
             visibility = False
-    else:
-        ui.notify(f"Error: {response_body}")
-        visibility = False
 
 async def fetch_image():
     async with httpx.AsyncClient() as client:
         response = await client.get('http://127.0.0.1:8000/image')
         if response.status_code == 200:
-            with open(IMAGE_PATH, "wb") as f:
+            with open(complete_picture, "wb") as f:
                 f.write(response.content)
-            return IMAGE_PATH
+            return complete_picture
         else:
             ui.notify("Failed to load image")
 
-async def handle_pencil(e: events.MouseEventArguments):
-    x = e.image_x
-    y = e.image_y
-    thickness = preparation_parameters.thickness
-    await mp.addPoint(x,y, thickness)
-    
-async def handle_eraser(e: events.MouseEventArguments):
-    x = e.image_x
-    y = e.image_y
-    thickness = preparation_parameters.thickness
-    await mp.erasePoint(x,y, thickness)
+async def pencil_line(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        thickness = preparation_parameters.thickness
+        await mp.addLine(start_point, end_point, thickness)
+    else:
+        ui.notify('start and endpoint not set correctly')
 
+async def pencil_point(e: events.MouseEventArguments):
+    # only listens to mousedown to prevent to many dots from spawning
+    if e.type == 'mousedown':
+        x = e.image_x
+        y = e.image_y
+        thickness = preparation_parameters.thickness
+        await mp.addPoint(x,y, thickness)
+
+async def pencil_square(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        await mp.drawSquare(start_point, end_point)
+    else:
+        ui.notify('start and endpoint not set correctly')
+
+# clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
+async def handle_pencil(e: events.MouseEventArguments):
+    if preparation_parameters.preparation_type == 'line':
+        await pencil_line(e)
+    elif preparation_parameters.preparation_type == 'point':
+        await pencil_point(e)
+    elif preparation_parameters.preparation_type == 'square':
+        await pencil_square(e)    
+    else:
+        ui.notify(f'no preparation type chosen')
+            
+async def handle_eraser(e: events.MouseEventArguments):
+    if preparation_parameters.preparation_type == 'line':
+        await erase_line(e)
+    elif preparation_parameters.preparation_type == 'point':
+        await erase_point(e)
+    elif preparation_parameters.preparation_type == 'square':
+        await erase_square(e)    
+    else:
+        ui.notify(f'no preparation type chosen')
+
+async def erase_line(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        thickness = preparation_parameters.thickness
+        await mp.eraseLine(start_point, end_point, thickness)
+    else:
+        ui.notify('start and endpoint not set correctly')
+      
+async def erase_point(e: events.MouseEventArguments):
+    # only listens to mousedown to prevent to many dots from spawning
+    if e.type == 'mousedown':
+        x = e.image_x
+        y = e.image_y
+        thickness = preparation_parameters.thickness
+        await mp.erasePoint(x,y, thickness)
+
+async def erase_square(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        await mp.eraseSquare(start_point, end_point)
+    else:
+        ui.notify('start and endpoint not set correctly')
+        
+
+# to avoid caching issues, each URL must be unique to allow the browser to reload the image
 def reload_image(ii):
-    ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{IMAGE_PATH}?{time.time()}'))
+    global image_path
+    ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
 
