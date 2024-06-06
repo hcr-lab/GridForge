@@ -25,7 +25,8 @@ yaml_parameters = Yaml_parameters()
 preparation_parameters = Preparation_parameters()
 picture_name = 'uploaded_file'
 complete_yaml = 'uploaded_file.yaml'
-complete_picture = ' uploaded_file.jpg'
+complete_picture = 'uploaded_file.jpg'
+complete_pgm = 'uploaded_file.pgm'
 start_point = tuple
 end_point = tuple
 clicked = asyncio.Event()
@@ -94,9 +95,8 @@ def quality_page_layout():
     pass
 
 def process_image_name(e: events.UploadEventArguments):
-    global complete_yaml
-    global complete_picture
-    global image_path
+    global complete_yaml, complete_pgm, complete_picture, image_path
+
     # get the file extension from the uploaded picture and save the file extension to 
     _, file_extension = os.path.splitext(e.name)
     # file type check
@@ -108,6 +108,7 @@ def process_image_name(e: events.UploadEventArguments):
         if len(yaml_parameters.image) > 0:
             complete_picture = "".join([yaml_parameters.image, file_extension])
             complete_yaml = "".join([yaml_parameters.image, '.yaml'])
+            complete_pgm = "".join([yaml_parameters.image, '.pgm'])
             yaml_parameters.image = complete_picture
             e.name = complete_picture
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
@@ -115,6 +116,7 @@ def process_image_name(e: events.UploadEventArguments):
         else:
             complete_picture = "".join([picture_name, file_extension]) 
             complete_yaml = "".join([picture_name, '.yaml'])
+            complete_pgm = "".join([picture_name, '.pgm'])
             yaml_parameters.image = complete_picture
             e.name = complete_picture
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
@@ -136,11 +138,11 @@ def download_page_layout():
             ui.checkbox('Negate').bind_value(yaml_parameters, 'negate')
             
             ui.label('Occupied threshold').classes('text-xl')
-            occupied_thresh = ui.slider(min=0.001, max=1, step=0.001).bind_value(yaml_parameters, 'occupied_thresh')
+            occupied_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'occupied_thresh')
             ui.label().bind_text_from(occupied_thresh, 'value')
             
             ui.label('Free threshold').classes('text-xl')
-            free_thresh = ui.slider(min=0.001, max=1, step=0.001).bind_value(yaml_parameters, 'free_thresh')
+            free_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'free_thresh')
             ui.label().bind_text_from(free_thresh, 'value')
             
             ui.label('Mode').classes('text-xl')
@@ -166,7 +168,8 @@ async def download_map_files() -> None:
                 if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
                     ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
                     print(response_body_dict)  # Print the dictionary of the JSON response
-                    ui.download(f'{UPLOAD_DIR}/{complete_picture}?{time.time()}')
+                    ui.download(f'{UPLOAD_DIR}/{complete_pgm}')
+ #                   ui.download(f'{UPLOAD_DIR}/{complete_pgm}?{time.time()}')
                     ui.download(f'{UPLOAD_DIR}/{complete_yaml}')
                 else:
                     ui.notify("Error: Response is not a dictionary")
@@ -183,35 +186,33 @@ def no_pic():
 def pencil() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
-        ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
-        reload_image(ii)
         ui.label('Thickness').classes('text-xl')
         thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
         ui.label().bind_text_from(thickness, 'value')
         ui.label('Type of processing').classes('text-xl')
         ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
-
+        ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
+        reload_image(ii)
     else:
         no_pic
 
 def eraser() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
-        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
-        reload_image(ii)
         ui.label('Thickness').classes('text-xl')
-        thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
-        ui.label().bind_text_from(thickness, 'value')
+        with ui.row():
+            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
+            ui.label().bind_text_from(thickness, 'value')
         ui.label('Type of processing').classes('text-xl')
         ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
-
+        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
+        reload_image(ii)
     else:
         no_pic()    
     
 # TODO: File type check
 async def on_file_upload(e: events.UploadEventArguments):
-    global visibility
-    global yaml_parameters
+    global visibility, yaml_parameters
     
     # check if correct image type was uploaded
     if process_image_name(e):

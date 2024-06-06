@@ -114,4 +114,5 @@ def convert_to_pgm():
             logger.error(f'Failed to write image to {output_path}')
     else: 
         logger.info('negate is True')
+        # invert image if necessary
         pass
