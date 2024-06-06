@@ -129,32 +129,32 @@ def process_image_name(e: events.UploadEventArguments):
 def download_page_layout(): 
     global yaml_parameters
     if visibility:
-        with ui.column():
-            ui.label('Resolution').classes('text-xl')
-            resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution')
-            ui.label().bind_text_from(resolution, 'value')
+        with ui.grid(columns=16).classes('w-full gap-0'):
+            ui.label('Resolution').classes('text-xl cols-span-full')
+            resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution').classes('col-span-full')
+            ui.label().bind_text_from(resolution, 'value').classes('col-span-4')
 
-            ui.label('Origin').classes('text-xl')
-            ui.number('Origin: x', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_x')
-            ui.number('Origin: y', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_y')
-            ui.number('Origin: yaw', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_yaw')
+            ui.label('Origin').classes('text-xl').classes('border p-1').classes('col-span-full')
+            ui.number('Origin: x', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_x').classes('col-span-5')
+            ui.number('Origin: y', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_y').classes('col-span-5')
+            ui.number('Origin: yaw', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_yaw').classes('col-span-6')
 
-            ui.checkbox('Negate').bind_value(yaml_parameters, 'negate')
+            ui.checkbox('Negate').bind_value(yaml_parameters, 'negate').classes('border p-1 col-span-full')
             
-            ui.label('Occupied threshold').classes('text-xl')
-            occupied_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'occupied_thresh')
-            ui.label().bind_text_from(occupied_thresh, 'value')
-            ui.number('Occopied threshold', value=yaml_parameters.occupied_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'occupied_thresh')
+            ui.label('Occupied threshold').classes('text-xl col-span-full')
+            occupied_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'occupied_thresh').classes('col-span-8 vertical-bottom')
+            ui.number('Occopied threshold', value=yaml_parameters.occupied_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'occupied_thresh').classes('col-span-5')
+            ui.label().bind_text_from(occupied_thresh, 'value').classes('col-span-3')
             
-            ui.label('Free threshold').classes('text-xl')
-            free_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'free_thresh')
-            ui.label().bind_text_from(free_thresh, 'value')
-            ui.number('Free threshold', value=yaml_parameters.free_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'free_thresh')
+            ui.label('Free threshold').classes('text-xl col-span-full border p-4')
+            free_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'free_thresh').classes('col-span-8')
+            ui.number('Free threshold', value=yaml_parameters.free_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'free_thresh').classes('col-span-5')
+            ui.label().bind_text_from(free_thresh, 'value').classes('col-span-3')
 
-            ui.label('Mode').classes('text-xl')
-            ui.select(['trinary', 'scale', 'raw']).bind_value(yaml_parameters, 'mode')
+            ui.label('Mode').classes('text-xl').classes('col-span-4')
+            ui.select(['trinary', 'scale', 'raw']).bind_value(yaml_parameters, 'mode').classes('col-span-12')
 
-            ui.button('Confirm Values and download map files', on_click=download_map_files)
+            ui.button('Confirm Values and download map files', on_click=download_map_files).classes('col-span-full')
     else:
         no_pic()
         
