@@ -144,11 +144,13 @@ def download_page_layout():
             ui.label('Occupied threshold').classes('text-xl')
             occupied_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'occupied_thresh')
             ui.label().bind_text_from(occupied_thresh, 'value')
+            ui.number('Occopied threshold', value=yaml_parameters.occupied_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'occupied_thresh')
             
             ui.label('Free threshold').classes('text-xl')
             free_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'free_thresh')
             ui.label().bind_text_from(free_thresh, 'value')
-            
+            ui.number('Free threshold', value=yaml_parameters.free_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'free_thresh')
+
             ui.label('Mode').classes('text-xl')
             ui.select(['trinary', 'scale', 'raw']).bind_value(yaml_parameters, 'mode')
 
@@ -157,9 +159,7 @@ def download_page_layout():
         no_pic()
         
 async def download_map_files() -> None:
-    global yaml_parameters
-    global complete_yaml
-    global complete_picture
+    global yaml_parameters, complete_yaml, complete_picture
     
     yaml_string = to_yaml_str(yaml_parameters)
     ui.notify(yaml_string)
@@ -173,7 +173,6 @@ async def download_map_files() -> None:
                     ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
                     print(response_body_dict)  # Print the dictionary of the JSON response
                     ui.download(f'{UPLOAD_DIR}/{complete_pgm}')
- #                   ui.download(f'{UPLOAD_DIR}/{complete_pgm}?{time.time()}')
                     ui.download(f'{UPLOAD_DIR}/{complete_yaml}')
                 else:
                     ui.notify("Error: Response is not a dictionary")
@@ -189,6 +188,7 @@ def no_pic():
 def pencil() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
+        # TODO: use quasar classes to fix content to directly below the header
         with ui.grid(columns = '200px auto'):
             ui.label('Thickness').classes('text-xl').classes('border p-1')
             thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1')
