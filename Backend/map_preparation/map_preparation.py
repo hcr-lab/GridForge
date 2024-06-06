@@ -9,6 +9,9 @@ from Backend.map_preparation.data import FileUploaded
 
 app = FastAPI()
 
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,
@@ -84,7 +87,7 @@ async def addPoint(x: float, y: float, thickness: int):
     image = cv2.imread(image_path)
 
     # Modify the image based on click (e.g., draw a circle at the clicked position)
-    cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # black circle
+    cv2.circle(image, (x, y), thickness, BLACK, -1)  # black circle
         
     # Save the modified image
     cv2.imwrite(image_path, image)
@@ -104,15 +107,36 @@ async def addLine(start_point: tuple, end_point: tuple, thickness: int):
     # Load the image
     image = cv2.imread(image_path)
 
-    # # Modify the image based on click (e.g., draw a circle at the clicked position)
-    # cv2.circle(image, (x, y), thickness, (0, 0, 0), -1)  # Red circle
-    
     # Convert points to integers
     start_point = (int(start_point[0]), int(start_point[1]))
     end_point = (int(end_point[0]), int(end_point[1]))
     
-    cv2.line(image, start_point, end_point, (0, 0, 0), thickness=thickness)
+    cv2.line(image, start_point, end_point, BLACK, thickness=thickness)
     
+    # Save the modified image
+    cv2.imwrite(image_path, image)
+
+    return {"message": "Image modified successfully"}
+
+@app.post('/draw_square')
+async def drawSquare(start_point: tuple, end_point: tuple):
+    # x = int(x)
+    # y = int(y)
+    # if x is None or y is None:
+    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
+    logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Load the image
+    image = cv2.imread(image_path)
+
+    # Convert points to integers
+    start_point = (int(start_point[0]), int(start_point[1]))
+    end_point = (int(end_point[0]), int(end_point[1]))
+    
+    cv2.rectangle(image, start_point, end_point, BLACK, -1)
+
     # Save the modified image
     cv2.imwrite(image_path, image)
 
@@ -132,9 +156,57 @@ async def erasePoint(x: float, y: float, thickness: int):
     image = cv2.imread(image_path)
 
     # Modify the image based on click (e.g., draw a circle at the clicked position)
-    cv2.circle(image, (x, y), thickness, (255, 255, 255), -1)  # Red circle
+    cv2.circle(image, (x, y), thickness, WHITE, -1)  # Red circle
 
     # Save the modified image
     cv2.imwrite(image_path, image)
 
     return {"message": "Image modified successfully", "x": x, "y": y}
+
+@app.post('/eraser_line')
+async def eraseLine(start_point: tuple, end_point: tuple, thickness: int):
+    # x = int(x)
+    # y = int(y)
+    # if x is None or y is None:
+    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
+    logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Load the image
+    image = cv2.imread(image_path)
+
+    # Convert points to integers
+    start_point = (int(start_point[0]), int(start_point[1]))
+    end_point = (int(end_point[0]), int(end_point[1]))
+    
+    cv2.line(image, start_point, end_point, WHITE, thickness=thickness)
+    
+    # Save the modified image
+    cv2.imwrite(image_path, image)
+
+    return {"message": "Image modified successfully"}
+
+@app.post('/eraser_square')
+async def eraseSquare(start_point: tuple, end_point: tuple):
+    # x = int(x)
+    # y = int(y)
+    # if x is None or y is None:
+    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
+    logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Load the image
+    image = cv2.imread(image_path)
+
+    # Convert points to integers
+    start_point = (int(start_point[0]), int(start_point[1]))
+    end_point = (int(end_point[0]), int(end_point[1]))
+    
+    cv2.rectangle(image, start_point, end_point, WHITE, -1)
+
+    # Save the modified image
+    cv2.imwrite(image_path, image)
+
+    return {"message": "Image modified successfully"}

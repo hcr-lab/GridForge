@@ -52,8 +52,6 @@ def init(fastapi_app: FastAPI) -> None:
             ui.label('Upload').classes('text-2xl')
             ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image')
             ui.upload(on_upload=on_file_upload, label="Upload a picture")
-            ui.button('Start flow', on_click=flow)
-
             
         # Farbpalette zeigen, Hinzufügen
         @router.add('/pencil') 
@@ -82,7 +80,7 @@ def init(fastapi_app: FastAPI) -> None:
         with ui.row():
             ui.button('Upload', on_click=lambda: router.open(show_upload)).classes('w-32')
             ui.button('Pencil', on_click=lambda: router.open(show_pencil)).classes('w-32')
-            ui.button('Rubber', on_click=lambda: router.open(show_eraser)).classes('w-32')
+            ui.button('Eraser', on_click=lambda: router.open(show_eraser)).classes('w-32')
             ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32')
             ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32')
             
@@ -246,15 +244,9 @@ async def fetch_image():
             return complete_picture
         else:
             ui.notify("Failed to load image")
-async def flow():
-    clicked = asyncio.Event()
-    ui.button('Click me', on_click=clicked.set)
-    await clicked.wait()
-    ui.notify('You clicked me!')
 
 async def pencil_line(e: events.MouseEventArguments):
     global start_point, end_point, clicked
-
     if e.type == 'mousedown':
         start_point = (e.image_x, e.image_y)
         clicked.clear()
@@ -277,26 +269,77 @@ async def pencil_point(e: events.MouseEventArguments):
         await mp.addPoint(x,y, thickness)
 
 async def pencil_square(e: events.MouseEventArguments):
-    # add method to draw a square
-    pass
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        await mp.drawSquare(start_point, end_point)
+    else:
+        ui.notify('start and endpoint not set correctly')
 
-# TODO: currently nothing happens, check via notify
 # clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
 async def handle_pencil(e: events.MouseEventArguments):
     if preparation_parameters.preparation_type == 'line':
-        pencil_line(e)
+        await pencil_line(e)
     elif preparation_parameters.preparation_type == 'point':
-        pencil_point(e)
+        await pencil_point(e)
     elif preparation_parameters.preparation_type == 'square':
-        pencil_square(e)    
+        await pencil_square(e)    
     else:
         ui.notify(f'no preparation type chosen')
             
 async def handle_eraser(e: events.MouseEventArguments):
-    x = e.image_x
-    y = e.image_y
-    thickness = preparation_parameters.thickness
-    await mp.erasePoint(x,y, thickness)
+    if preparation_parameters.preparation_type == 'line':
+        await erase_line(e)
+    elif preparation_parameters.preparation_type == 'point':
+        await erase_point(e)
+    elif preparation_parameters.preparation_type == 'square':
+        await erase_square(e)    
+    else:
+        ui.notify(f'no preparation type chosen')
+
+async def erase_line(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        thickness = preparation_parameters.thickness
+        await mp.eraseLine(start_point, end_point, thickness)
+    else:
+        ui.notify('start and endpoint not set correctly')
+      
+async def erase_point(e: events.MouseEventArguments):
+    # only listens to mousedown to prevent to many dots from spawning
+    if e.type == 'mousedown':
+        x = e.image_x
+        y = e.image_y
+        thickness = preparation_parameters.thickness
+        await mp.erasePoint(x,y, thickness)
+
+async def erase_square(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        await mp.eraseSquare(start_point, end_point)
+    else:
+        ui.notify('start and endpoint not set correctly')
+        
 
 # to avoid caching issues, each URL must be unique to allow the browser to reload the image
 def reload_image(ii):
