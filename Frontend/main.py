@@ -33,6 +33,10 @@ clicked = asyncio.Event()
 
 UPLOAD_DIR = "uploaded_files"
 
+FLAME_RED = '#CD2A23'
+FLAME_ORANGE = '#EF7C23'
+FLAME_YELLOW = '#F2E738'
+
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 image_path = os.path.join(UPLOAD_DIR, complete_picture)
 
@@ -78,7 +82,7 @@ def init(fastapi_app: FastAPI) -> None:
             quality_page_layout()
             
         # adding some navigation buttons to switch between the different pages
-        with ui.row():
+        with ui.header(elevated=True).style(f'background-color: #3874c8').classes('items-center justify-between'):
             ui.button('Upload', on_click=lambda: router.open(show_upload)).classes('w-32')
             ui.button('Pencil', on_click=lambda: router.open(show_pencil)).classes('w-32')
             ui.button('Eraser', on_click=lambda: router.open(show_eraser)).classes('w-32')
@@ -182,15 +186,19 @@ def no_pic():
     ui.notify("No picture uploaded, please go to Upload and upload a file")
     
 # TODO: write only one function and give on mouse handler as a parameter
-# TODO: allow dragging of mouse to multiple locations 
 def pencil() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
-        ui.label('Thickness').classes('text-xl')
-        thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
-        ui.label().bind_text_from(thickness, 'value')
-        ui.label('Type of processing').classes('text-xl')
-        ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
+        with ui.grid(columns = '200px auto'):
+            ui.label('Thickness').classes('text-xl').classes('border p-1')
+            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1')
+            
+            ui.label('Thickness set to: ').classes('text-xl').classes('border p-1')
+            ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
+            
+            ui.label('Type of processing').classes('text-xl').classes('border p-1')
+            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1')
+        
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
         reload_image(ii)
     else:
@@ -199,12 +207,16 @@ def pencil() -> None:
 def eraser() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
-        ui.label('Thickness').classes('text-xl')
-        with ui.row():
-            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness')
-            ui.label().bind_text_from(thickness, 'value')
-        ui.label('Type of processing').classes('text-xl')
-        ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type')
+        with ui.grid(columns = '200px auto'):
+            ui.label('Thickness').classes('text-xl').classes('border p-1')
+            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1')
+            
+            ui.label('Thickness set to: ').classes('text-xl').classes('border p-1')
+            ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
+            
+            ui.label('Type of processing').classes('text-xl').classes('border p-1')
+            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1')
+        
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
         reload_image(ii)
     else:
