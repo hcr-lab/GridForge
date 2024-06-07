@@ -11,25 +11,26 @@ import json
 import os
 from Frontend.preparation_parameters import Preparation_parameters
 from Frontend.yaml_parameters import Yaml_parameters
+from Frontend.tooltips import Tooltip_Enum
 import time 
 from pydantic_yaml import to_yaml_str
 
 # global variables
-site_plan = any
 ii = any
-processed_image = any
 thickness = 3
 visibility = True
-origin = None
+start_point = tuple
+end_point = tuple
+
 yaml_parameters = Yaml_parameters()
 preparation_parameters = Preparation_parameters()
+tooltip = Tooltip_Enum()
+clicked = asyncio.Event()
+
 picture_name = 'uploaded_file'
 complete_yaml = 'uploaded_file.yaml'
 complete_picture = 'uploaded_file.jpg'
 complete_pgm = 'uploaded_file.pgm'
-start_point = tuple
-end_point = tuple
-clicked = asyncio.Event()
 
 UPLOAD_DIR = "uploaded_files"
 
@@ -55,8 +56,8 @@ def init(fastapi_app: FastAPI) -> None:
             global picture_name
             global yaml_parameters
             ui.label('Upload').classes('text-2xl')
-            ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image')
-            ui.upload(on_upload=on_file_upload, label="Upload a picture")
+            ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image').tooltip(tooltip.UPLOAD_NAME)
+            ui.upload(on_upload=on_file_upload, label="Upload a picture").tooltip(tooltip.UPLOAD_IF)
             
         # Farbpalette zeigen, Hinzufügen
         @router.add('/pencil') 
@@ -83,11 +84,11 @@ def init(fastapi_app: FastAPI) -> None:
             
         # adding some navigation buttons to switch between the different pages
         with ui.header(elevated=True).style(f'background-color: #3874c8').classes('items-center justify-between'):
-            ui.button('Upload', on_click=lambda: router.open(show_upload)).classes('w-32')
-            ui.button('Pencil', on_click=lambda: router.open(show_pencil)).classes('w-32')
-            ui.button('Eraser', on_click=lambda: router.open(show_eraser)).classes('w-32')
-            ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32')
-            ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32')
+            ui.button('Upload', on_click=lambda: router.open(show_upload)).classes('w-32').tooltip(tooltip.UPLOAD_BUTTON)
+            ui.button('Pencil', on_click=lambda: router.open(show_pencil)).classes('w-32').tooltip(tooltip.PENCIL_BUTTON)
+            ui.button('Eraser', on_click=lambda: router.open(show_eraser)).classes('w-32').tooltip(tooltip.ERASER_BUTTON)
+            ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
+            ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32').tooltip(tooltip.QUALITY_BUTTON)
             
         # this places the content which should be displayed
         router.frame().classes('w-full p-4 bg-gray-100')
@@ -130,31 +131,31 @@ def download_page_layout():
     global yaml_parameters
     if visibility:
         with ui.grid(columns=16).classes('w-full gap-0'):
-            ui.label('Resolution').classes('text-xl cols-span-full')
-            resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution').classes('col-span-full')
-            ui.label().bind_text_from(resolution, 'value').classes('col-span-4')
+            ui.label('Resolution [m/px]').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
+            resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution').classes('col-span-full').tooltip(tooltip.RESOLUTION)
+            ui.label().bind_text_from(resolution, 'value').classes('col-span-4').tooltip(tooltip.RESOLUTION)
 
-            ui.label('Origin').classes('text-xl').classes('border p-1').classes('col-span-full')
-            ui.number('Origin: x', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_x').classes('col-span-5')
-            ui.number('Origin: y', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_y').classes('col-span-5')
-            ui.number('Origin: yaw', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_yaw').classes('col-span-6')
+            ui.label('Origin').classes('text-xl').classes('border p-1').classes('col-span-full').tooltip(tooltip.ORIGIN)
+            ui.number('Origin: x [m]', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_x').classes('col-span-5').tooltip(tooltip.ORIGIN_X)
+            ui.number('Origin: y [m]', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_y').classes('col-span-5').tooltip(tooltip.ORIGIN_Y)
+            ui.number('Origin: yaw [rad]', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_yaw').classes('col-span-6').tooltip(tooltip.ORIGIN_YAW)
 
-            ui.checkbox('Negate').bind_value(yaml_parameters, 'negate').classes('border p-1 col-span-full')
+            ui.checkbox('Negate').bind_value(yaml_parameters, 'negate').classes('border p-1 col-span-full').tooltip(tooltip.NEGATE)
             
-            ui.label('Occupied threshold').classes('text-xl col-span-full')
-            occupied_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'occupied_thresh').classes('col-span-8 vertical-bottom')
-            ui.number('Occopied threshold', value=yaml_parameters.occupied_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'occupied_thresh').classes('col-span-5')
-            ui.label().bind_text_from(occupied_thresh, 'value').classes('col-span-3')
+            ui.label('Occupied threshold').classes('text-xl col-span-full').tooltip(tooltip.OCCUPIED_THRESH)
+            occupied_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'occupied_thresh').classes('col-span-8 vertical-bottom').tooltip(tooltip.OCCUPIED_THRESH)
+            ui.number('Occopied threshold', value=yaml_parameters.occupied_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'occupied_thresh').classes('col-span-5').tooltip(tooltip.OCCUPIED_THRESH)
+            ui.label().bind_text_from(occupied_thresh, 'value').classes('col-span-3').tooltip(tooltip.OCCUPIED_THRESH)
             
-            ui.label('Free threshold').classes('text-xl col-span-full border p-4')
-            free_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'free_thresh').classes('col-span-8')
-            ui.number('Free threshold', value=yaml_parameters.free_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'free_thresh').classes('col-span-5')
-            ui.label().bind_text_from(free_thresh, 'value').classes('col-span-3')
+            ui.label('Free threshold').classes('text-xl col-span-full border p-4').tooltip(tooltip.FREE_THRESH)
+            free_thresh = ui.slider(min=0.001, max=1, step=0.01).bind_value(yaml_parameters, 'free_thresh').classes('col-span-8').tooltip(tooltip.FREE_THRESH)
+            ui.number('Free threshold', value=yaml_parameters.free_thresh, format ='%.2f', step = 0.1).bind_value(yaml_parameters, 'free_thresh').classes('col-span-5').tooltip(tooltip.FREE_THRESH)
+            ui.label().bind_text_from(free_thresh, 'value').classes('col-span-3').tooltip(tooltip.FREE_THRESH)
 
-            ui.label('Mode').classes('text-xl').classes('col-span-4')
-            ui.select(['trinary', 'scale', 'raw']).bind_value(yaml_parameters, 'mode').classes('col-span-12')
+            ui.label('Mode').classes('text-xl').classes('col-span-4').tooltip(tooltip.MODE)
+            ui.select(['trinary', 'scale', 'raw']).bind_value(yaml_parameters, 'mode').classes('col-span-12').tooltip(tooltip.MODE)
 
-            ui.button('Confirm Values and download map files', on_click=download_map_files).classes('col-span-full')
+            ui.button('Confirm Values and download map files', on_click=download_map_files).classes('col-span-full').tooltip(tooltip.DOWNLOAD_BUTTON)
     else:
         no_pic()
         
@@ -190,14 +191,14 @@ def pencil() -> None:
     if visibility:
         # TODO: use quasar classes to fix content to directly below the header
         with ui.grid(columns = '200px auto'):
-            ui.label('Thickness').classes('text-xl').classes('border p-1')
-            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1')
+            ui.label('Thickness').classes('text-xl').classes('border p-1').tooltip(tooltip.THICKNESS)
+            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1').tooltip(tooltip.THICKNESS)
             
             ui.label('Thickness set to: ').classes('text-xl').classes('border p-1')
             ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
             
-            ui.label('Type of processing').classes('text-xl').classes('border p-1')
-            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1')
+            ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.PENCIL)
+            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
         
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
         reload_image(ii)
@@ -208,14 +209,14 @@ def eraser() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
         with ui.grid(columns = '200px auto'):
-            ui.label('Thickness').classes('text-xl').classes('border p-1')
-            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1')
+            ui.label('Thickness').classes('text-xl').classes('border p-1').tooltip(tooltip.THICKNESS)
+            thickness = ui.slider(min=1, max=20, step=1).bind_value(preparation_parameters, 'thickness').classes('border p-1').tooltip(tooltip.THICKNESS)
             
             ui.label('Thickness set to: ').classes('text-xl').classes('border p-1')
             ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
             
-            ui.label('Type of processing').classes('text-xl').classes('border p-1')
-            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1')
+            ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.ERASER)
+            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
         
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
         reload_image(ii)
