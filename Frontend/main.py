@@ -26,7 +26,7 @@ yaml_parameters = Yaml_parameters()
 preparation_parameters = Preparation_parameters()
 tooltip = Tooltip_Enum()
 clicked = asyncio.Event()
-timer22 = ui.timer(interval=1, callback=lambda: ui.notify('.'))
+image_reload_timer = ui.timer(interval=1, callback=lambda: ui.notify('.'))
 
 picture_name = 'uploaded_file'
 complete_yaml = 'uploaded_file.yaml'
@@ -205,7 +205,7 @@ def pencil() -> None:
             ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.PENCIL)
             ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
-        reload_image()
+        # reload_image()
     else:
         no_pic
 
@@ -223,7 +223,7 @@ def eraser() -> None:
             ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
         
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'],cross='red')
-        reload_image()
+        # reload_image()
     else:
         no_pic()    
     
@@ -367,45 +367,16 @@ async def erase_square(e: events.MouseEventArguments):
         await mp.eraseSquare(start_point, end_point)
     else:
         ui.notify('start and endpoint not set correctly')
-        
-# funktioniert einmalig, aber nicht beim wechseln hin und her. Error mit den timer deletions
-# also check if filled_image is present before switching source!
+
 # to avoid caching issues, each URL must be unique to allow the browser to reload the image
 def reload_image():
-    global timer22
-    # activate via binding to active property
-    # timer_image = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
-    # timer_filled = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{filled_image_path}?{time.time()}'))
-    # if preparation_parameters.preparation_type != 'fill':
-    #     ui.notify('not fill')
-    #     timer_image.activate()
-    #     timer_filled.deactivate()
-    #     ui.notify(f'image active {timer_image.active}')
-    #     ui.notify(f'filled active {timer_filled.active}')
-
-    # elif preparation_parameters.preparation_type == 'fill':
-    #     ui.notify('fill reached')
-    #     timer_filled.activate()
-    #     timer_image.deactivate()
-    #     ui.notify(f'image active {timer_image.active}')
-    #     ui.notify(f'filled active {timer_filled.active}')        
-    # else: 
-    #     ui.notify('No picture chosen or picture deleted, please start by uploading a picture')
-
+    global image_reload_timer
     if preparation_parameters.preparation_type != 'fill':
-        # only change image source when filled image type exists
-        ui.notify(f'before deletion {timer22.active}')
-        timer22.delete()
-        ui.notify(f'after deletion {timer22.active}')
-        timer22 = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
-        ui.notify(f'image active {timer22.active}')
-
+        image_reload_timer.cancel()
+        image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
     elif preparation_parameters.preparation_type == 'fill':
         if os.path.exists(filled_image_path):
-            ui.notify(f'before deletion {timer22.active}')
-            timer22.delete()
-            ui.notify(f'after deletion {timer22.active}')
-            timer22 = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{filled_image_path}?{time.time()}'))
-             
+            image_reload_timer.cancel()
+            image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{filled_image_path}?{time.time()}'))
     else: 
         ui.notify('No picture chosen or picture deleted, please start by uploading a picture')
