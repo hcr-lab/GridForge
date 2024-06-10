@@ -14,15 +14,9 @@ class Tooltip_Enum():
     
     THICKNESS = 'This sets the thickness of the lines in Pixels'
     PENCIL = 'With this button, the processing mode can be changed. \n Point = a black dot with set thickness is drawn at the location of the click \n Line = a black line with the set thickness is drawn between the point where the mouse goes down and the point where the mouse goes up \n Rectangle = a filled black rectangle is drawn between the point where the mouse goes down and the point where the mouse goes up.\n These modes add obstacles to the site plan'
-    # PENCIL_LINE = 'With this mode, a black line with the set thickness is drawn between the point where the mouse goes down and the point where the mouse goes up'
-    # PENCIL_POINT = 'With this mode, a black dot with set thickness is drawn at the location of the click'
-    # PENCIL_RECTANGLE = 'With this mode, a filled black rectangle is drawn between the point where the mouse goes down and the point where the mouse goes up'
-    
+
     ERASER = 'With this button, the processing mode can be changed. \n Point = a white dot with set thickness is drawn at the location of the click \n Line = a white line with the set thickness is drawn between the point where the mouse goes down and the point where the mouse goes up \n Rectangle = a filled black white is drawn between the point where the mouse goes down and the point where the mouse goes up \n These modes effectively erase things on the site plan'
-    # ERASE_LINE = 'With this mode, a white line with the set thickness is drawn between the point where the mouse goes down and the point where the mouse goes up. This effectively erases everything on the line'
-    # ERASE_POINT = 'With this mode, a white dot with set thickness is drawn at the location of the click. This effectively erases the point'
-    # ERASE_RECTANGLE = 'With this mode, a filled white rectangle is drawn between the point where the mouse goes down and the point where the mouse goes up. This effectively erases everything in the rectangle'
-    
+ 
     UPLOAD_IF = 'Click here to choose a file on your pc. Only choose ONE file of type png, jpg or pgm. After choosing the image, click on the cloud symbol to upload it to the system'
     UPLOAD_NAME = 'Enter the name of the picture here, but without file extension'
     

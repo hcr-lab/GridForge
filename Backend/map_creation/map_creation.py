@@ -1,7 +1,9 @@
 import cv2
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import os
+
+import numpy as np
 
 from Backend.map_preparation.data import FileUploaded
 import logging
@@ -51,10 +53,8 @@ async def download_files(yaml_string: str):
 # since the Yaml_parameter class is not in the correct format, 
 # it needs to be processed into the correct format
 def process_yaml_string(yaml_string: str):
-    global file_name
-    global yaml_file_path
-    global data
-    
+    global file_name, yaml_file_path, data
+
     lines = yaml_string.split('\n')
     
     # Parse the lines into the dictionary
@@ -116,3 +116,4 @@ def convert_to_pgm():
         logger.info('negate is True')
         # invert image if necessary
         pass
+    

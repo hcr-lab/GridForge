@@ -5,6 +5,7 @@ class Preparation_type(str, Enum):
     line = "line"
     point = "point"
     square = "square"
+    fill = "fill"
     
 class Preparation_parameters(BaseModel):
     thickness: int = 3

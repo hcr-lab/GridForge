@@ -26,6 +26,7 @@ yaml_parameters = Yaml_parameters()
 preparation_parameters = Preparation_parameters()
 tooltip = Tooltip_Enum()
 clicked = asyncio.Event()
+timer22 = ui.timer(interval=1, callback=lambda: ui.notify('.'))
 
 picture_name = 'uploaded_file'
 complete_yaml = 'uploaded_file.yaml'
@@ -40,6 +41,7 @@ FLAME_YELLOW = '#F2E738'
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 image_path = os.path.join(UPLOAD_DIR, complete_picture)
+filled_image_path = os.path.join(UPLOAD_DIR, 'filled_image.jpg')
 
 # make directory with uploaded files accessible to frontend
 app.add_static_files(url_path='/uploaded_files', local_directory='uploaded_files')
@@ -100,7 +102,7 @@ def quality_page_layout():
     pass
 
 def process_image_name(e: events.UploadEventArguments):
-    global complete_yaml, complete_pgm, complete_picture, image_path
+    global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path
 
     # get the file extension from the uploaded picture and save the file extension to 
     _, file_extension = os.path.splitext(e.name)
@@ -114,6 +116,7 @@ def process_image_name(e: events.UploadEventArguments):
             complete_picture = "".join([yaml_parameters.image, file_extension])
             complete_yaml = "".join([yaml_parameters.image, '.yaml'])
             complete_pgm = "".join([yaml_parameters.image, '.pgm'])
+            
             yaml_parameters.image = complete_picture
             e.name = complete_picture
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
@@ -125,6 +128,9 @@ def process_image_name(e: events.UploadEventArguments):
             yaml_parameters.image = complete_picture
             e.name = complete_picture
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
+        # create filled image path with respect to file extension to avoid conversion issues
+        complete_filled = "".join(['filled_image', file_extension])
+        filled_image_path = os.path.join(UPLOAD_DIR, complete_filled)
         return True
     
 def download_page_layout(): 
@@ -185,7 +191,6 @@ async def download_map_files() -> None:
 def no_pic():
     ui.notify("No picture uploaded, please go to Upload and upload a file")
     
-# TODO: write only one function and give on mouse handler as a parameter
 def pencil() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
@@ -198,10 +203,9 @@ def pencil() -> None:
             ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
             
             ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.PENCIL)
-            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
-        
+            ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
-        reload_image(ii)
+        reload_image()
     else:
         no_pic
 
@@ -216,18 +220,17 @@ def eraser() -> None:
             ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
             
             ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.ERASER)
-            ui.toggle(['point', 'line', 'square']).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
+            ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
         
-        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'], cross='red')
-        reload_image(ii)
+        ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'],cross='red')
+        reload_image()
     else:
         no_pic()    
     
-# TODO: File type check
 async def on_file_upload(e: events.UploadEventArguments):
     global visibility, yaml_parameters
     
-    # check if correct image type was uploaded
+    # check if correct image type was uploaded and process names accordingly
     if process_image_name(e):
     # access events via the event.Eventtype stuff and send content of the event to backend
         response = await mp.save_file(e.content.read(), e.name)
@@ -296,6 +299,13 @@ async def pencil_square(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
 
+async def fill_area(e: events.MouseEventArguments):
+    # only listens to mousedown to prevent to many dots from spawning
+    if e.type == 'mousedown':
+        x = e.image_x
+        y = e.image_y
+        await mp.fillArea(x,y)
+
 # clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
 async def handle_pencil(e: events.MouseEventArguments):
     if preparation_parameters.preparation_type == 'line':
@@ -304,6 +314,8 @@ async def handle_pencil(e: events.MouseEventArguments):
         await pencil_point(e)
     elif preparation_parameters.preparation_type == 'square':
         await pencil_square(e)    
+    elif preparation_parameters.preparation_type == 'fill':
+        await fill_area(e)     
     else:
         ui.notify(f'no preparation type chosen')
             
@@ -314,6 +326,8 @@ async def handle_eraser(e: events.MouseEventArguments):
         await erase_point(e)
     elif preparation_parameters.preparation_type == 'square':
         await erase_square(e)    
+    elif preparation_parameters.preparation_type == 'fill':
+        await fill_area(e)  
     else:
         ui.notify(f'no preparation type chosen')
 
@@ -354,9 +368,44 @@ async def erase_square(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
         
-
+# funktioniert einmalig, aber nicht beim wechseln hin und her. Error mit den timer deletions
+# also check if filled_image is present before switching source!
 # to avoid caching issues, each URL must be unique to allow the browser to reload the image
-def reload_image(ii):
-    global image_path
-    ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
+def reload_image():
+    global timer22
+    # activate via binding to active property
+    # timer_image = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
+    # timer_filled = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{filled_image_path}?{time.time()}'))
+    # if preparation_parameters.preparation_type != 'fill':
+    #     ui.notify('not fill')
+    #     timer_image.activate()
+    #     timer_filled.deactivate()
+    #     ui.notify(f'image active {timer_image.active}')
+    #     ui.notify(f'filled active {timer_filled.active}')
 
+    # elif preparation_parameters.preparation_type == 'fill':
+    #     ui.notify('fill reached')
+    #     timer_filled.activate()
+    #     timer_image.deactivate()
+    #     ui.notify(f'image active {timer_image.active}')
+    #     ui.notify(f'filled active {timer_filled.active}')        
+    # else: 
+    #     ui.notify('No picture chosen or picture deleted, please start by uploading a picture')
+
+    if preparation_parameters.preparation_type != 'fill':
+        # only change image source when filled image type exists
+        ui.notify(f'before deletion {timer22.active}')
+        timer22.delete()
+        ui.notify(f'after deletion {timer22.active}')
+        timer22 = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
+        ui.notify(f'image active {timer22.active}')
+
+    elif preparation_parameters.preparation_type == 'fill':
+        if os.path.exists(filled_image_path):
+            ui.notify(f'before deletion {timer22.active}')
+            timer22.delete()
+            ui.notify(f'after deletion {timer22.active}')
+            timer22 = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{filled_image_path}?{time.time()}'))
+             
+    else: 
+        ui.notify('No picture chosen or picture deleted, please start by uploading a picture')

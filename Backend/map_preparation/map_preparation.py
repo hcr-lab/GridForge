@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 import logging
 import cv2
+import numpy as np
 
 from Backend.map_preparation.data import FileUploaded
 
@@ -165,10 +166,6 @@ async def erasePoint(x: float, y: float, thickness: int):
 
 @app.post('/eraser_line')
 async def eraseLine(start_point: tuple, end_point: tuple, thickness: int):
-    # x = int(x)
-    # y = int(y)
-    # if x is None or y is None:
-    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -210,3 +207,34 @@ async def eraseSquare(start_point: tuple, end_point: tuple):
     cv2.imwrite(image_path, image)
 
     return {"message": "Image modified successfully"}
+
+async def fillArea(x: float, y: float):
+        x = int(x)
+        y = int(y)
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        # Read the image
+        image = cv2.imread(image_path)
+        if image is None:
+            raise HTTPException(status_code=404, detail="Failed to load image")
+
+        # Flood fill
+        # gets the image size in height and width. 
+        # Channels of the picture are not necessary, hence the slicing
+        h, w = image.shape[:2]
+        # flood fill requires a mask which is two pixels bigger in h and w dimension
+        mask = np.zeros((h+2, w+2), np.uint8)
+        flood_fill_color = (255, 0, 0)  # Fill color (red)
+        seed_point = (x, y)
+        lo_diff = (10, 10, 10)  # Lower brightness/color difference
+        up_diff = (10, 10, 10)  # Upper brightness/color difference
+        
+        cv2.floodFill(image, mask, seed_point, flood_fill_color, lo_diff, up_diff)
+
+        # Save the modified image
+        _, extension = os.path.splitext(image_path)
+        filled_image_path = os.path.join(UPLOAD_DIR, 'filled_image' + extension)
+        cv2.imwrite(filled_image_path, image)
+
+        return JSONResponse(content={"message": "Image modified successfully", "image_path": filled_image_path})
