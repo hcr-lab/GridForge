@@ -12,6 +12,7 @@ import os
 from Frontend.preparation_parameters import Preparation_parameters
 from Frontend.yaml_parameters import Yaml_parameters
 from Frontend.tooltips import Tooltip_Enum
+from Frontend.quality_parameters import quality_parameters
 import time 
 from pydantic_yaml import to_yaml_str
 
@@ -99,12 +100,20 @@ def init(fastapi_app: FastAPI) -> None:
     ui.run_with(fastapi_app, storage_secret='secret') 
 
 def quality_page_layout():
+    ui.label('Percentage of the area reachable by the robot, defined through the filled area').classes('text-xl')
+    ui.linear_progress(size='40px', color=FLAME_RED).bind_value_from(quality_parameters, 'percentage_filled_area')
+    ui.label('Percentage of the walls').classes('text-xl')
+    ui.linear_progress(size='40px', color=FLAME_ORANGE).bind_value_from(quality_parameters, 'percentage_walls')
+    ui.timer(interval=1.0, callback=update_quality_parameter)
+    pass
+
+def update_quality_parameter():
     pass
 
 def process_image_name(e: events.UploadEventArguments):
     global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path
 
-    # get the file extension from the uploaded picture and save the file extension to 
+    # get the file extension from the uploaded picture and save the file extension 
     _, file_extension = os.path.splitext(e.name)
     # file type check
     if file_extension not in ('.jpg', '.png', '.pgm'):
@@ -205,7 +214,6 @@ def pencil() -> None:
             ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.PENCIL)
             ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
-        # reload_image()
     else:
         no_pic
 
@@ -223,14 +231,12 @@ def eraser() -> None:
             ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
         
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'],cross='red')
-        # reload_image()
     else:
         no_pic()    
     
 async def on_file_upload(e: events.UploadEventArguments):
     global visibility, yaml_parameters
     
-    # check if correct image type was uploaded and process names accordingly
     if process_image_name(e):
     # access events via the event.Eventtype stuff and send content of the event to backend
         response = await mp.save_file(e.content.read(), e.name)
@@ -369,6 +375,7 @@ async def erase_square(e: events.MouseEventArguments):
         ui.notify('start and endpoint not set correctly')
 
 # to avoid caching issues, each URL must be unique to allow the browser to reload the image
+# and to avoid flickering images due to heavy switching, the timer needs to be canceld and re-inizialized again 
 def reload_image():
     global image_reload_timer
     if preparation_parameters.preparation_type != 'fill':
