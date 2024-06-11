@@ -7,12 +7,13 @@ from fastapi import FastAPI
 from Frontend.router import Router
 import Backend.map_preparation.map_preparation as mp
 import Backend.map_creation.map_creation as mc
+import Backend.quality_check.quality_check as qc
 import json
 import os
 from Frontend.preparation_parameters import Preparation_parameters
 from Frontend.yaml_parameters import Yaml_parameters
 from Frontend.tooltips import Tooltip_Enum
-from Frontend.quality_parameters import quality_parameters
+from Frontend.quality_parameters import Quality_parameters
 import time 
 from pydantic_yaml import to_yaml_str
 
@@ -28,6 +29,7 @@ preparation_parameters = Preparation_parameters()
 tooltip = Tooltip_Enum()
 clicked = asyncio.Event()
 image_reload_timer = ui.timer(interval=1, callback=lambda: ui.notify('.'))
+quality_parameters = Quality_parameters()
 
 picture_name = 'uploaded_file'
 complete_yaml = 'uploaded_file.yaml'
@@ -99,6 +101,7 @@ def init(fastapi_app: FastAPI) -> None:
     # mount path is homepage, secret is randomly chosen
     ui.run_with(fastapi_app, storage_secret='secret') 
 
+# don't forget the tooltips
 def quality_page_layout():
     ui.label('Percentage of the area reachable by the robot, defined through the filled area').classes('text-xl')
     ui.linear_progress(size='40px', color=FLAME_RED).bind_value_from(quality_parameters, 'percentage_filled_area')
@@ -107,8 +110,10 @@ def quality_page_layout():
     ui.timer(interval=1.0, callback=update_quality_parameter)
     pass
 
-def update_quality_parameter():
-    pass
+async def update_quality_parameter():
+    global quality_parameters
+    quality_parameters.percentage_filled_area = await qc.computeFilledAreaPercentage()
+    quality_parameters.percentage_walls = await qc.computePercentageWalls()
 
 def process_image_name(e: events.UploadEventArguments):
     global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path

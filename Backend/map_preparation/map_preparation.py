@@ -208,6 +208,7 @@ async def eraseSquare(start_point: tuple, end_point: tuple):
 
     return {"message": "Image modified successfully"}
 
+@app.post('/fillArea')
 async def fillArea(x: float, y: float):
         x = int(x)
         y = int(y)
