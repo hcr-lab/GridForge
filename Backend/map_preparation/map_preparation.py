@@ -226,7 +226,7 @@ async def fillArea(x: float, y: float):
         h, w = image.shape[:2]
         # flood fill requires a mask which is two pixels bigger in h and w dimension
         mask = np.zeros((h+2, w+2), np.uint8)
-        flood_fill_color = (255, 0, 0)  # Fill color (red)
+        flood_fill_color = (0, 0, 255)  # Fill color (red)
         seed_point = (x, y)
         lo_diff = (10, 10, 10)  # Lower brightness/color difference
         up_diff = (10, 10, 10)  # Upper brightness/color difference
