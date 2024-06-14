@@ -80,47 +80,86 @@ async def computeFilledAreaPercentage():
     if filled == None:
         getImageNamesInDir()
 
-    if not os.path.exists(filled):
-        raise HTTPException(status_code=404, detail="Image not found")
+    # if filled is still None after calling getImagesInDir,
+    # then fill function was never called and UI should respond accordingly without raising an exception
+    if filled == None:
+        return JSONResponse(status_code=400, content = {"filled_area_ratio": 0.0})
+        # raise HTTPException(status_code=404, detail="Image not found")
+    else:
+        # Load the image
+        image = cv2.imread(filled)
 
-    # Load the image
-    image = cv2.imread(filled)
+        if image is None:
+            raise HTTPException(status_code=404, detail="Failed to load image")
+        
+        # Convert the image to the HSV color space
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    if image is None:
-        raise HTTPException(status_code=404, detail="Failed to load image")
-    
-    # Convert the image to the HSV color space
-    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        # Define the color range for red in HSV
+        lower_red1 = np.array([0, 70, 50])
+        upper_red1 = np.array([10, 255, 255])
+        lower_red2 = np.array([170, 70, 50])
+        upper_red2 = np.array([180, 255, 255])
 
-    # Define the color range for the mask
-    # lower_bound = np.array(lower_bound, dtype="uint8")
-    # upper_bound = np.array(upper_bound, dtype="uint8")
+        # Create masks for the red color range
+        mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
+        mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
 
-    color = (0, 0, 255)
-    
-    # Create a mask for the specified color range
-    mask = cv2.inRange(hsv_image, color, color)
+        # Combine the masks
+        mask = cv2.bitwise_or(mask1, mask2)
 
-    # Calculate the total number of pixels
-    total_pixels = image.shape[0] * image.shape[1]
+        # write mask for debugging purposes
+        # cv2.imwrite(os.path.join(UPLOAD_DIR, 'mask.jpg'), mask)
+        
+        # Calculate the total number of pixels
+        total_pixels = image.shape[0] * image.shape[1]
 
-    # Calculate the number of pixels within the specified color range
-    color_pixels = cv2.countNonZero(mask)
-    logger.info(f'total pixels is {total_pixels}')
-    logger.info(f'color pixels: {color_pixels}')
-    # Calculate the percentage of the specified color
-    color_percentage = color_pixels / total_pixels
+        # Calculate the number of pixels within the specified color range
+        color_pixels = cv2.countNonZero(mask)
 
-    # convert to json later
-    # return JSONResponse(content={"color_percentage": color_percentage})
+        # Calculate the percentage of the specified color
+        color_percentage = color_pixels / total_pixels
 
-    return color_percentage
-    
+        return JSONResponse(content={"filled_area_ratio": color_percentage})
+        
 # use pgm image to compute the percentage of obstacles
 async def computePercentageWalls():
-    if not os.path.exists(pgm):
-        raise HTTPException(status_code=404, detail="Image not found")
+    global pgm
+    if pgm == None:
+        getImageNamesInDir()
 
-    # Load the image
-    image = cv2.imread(pgm)
-    pass
+    # if pgm is still None after calling getImagesInDir,
+    # then download function was never called and UI should respond accordingly without raising an exception
+    if pgm == None:
+        return JSONResponse(status_code=400, content = {"filled_area_ratio": 0.0})
+        # raise HTTPException(status_code=404, detail="Image not found")
+    else:
+        # Load the image
+        image = cv2.imread(pgm, cv2.IMREAD_GRAYSCALE)
+
+        if image is None:
+            raise HTTPException(status_code=404, detail="Failed to load image")
+        
+    # Define the threshold under which a pixel is detected as fully black
+    threshold = 50
+
+    # Apply the threshold to classify pixels as black or not
+    _, binary_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY_INV)
+    
+    cv2.imwrite(os.path.join(UPLOAD_DIR, 'mask.pgm'), binary_image)
+    
+    # Ensure the binary image is single-channel
+    if len(binary_image.shape) != 2:
+        raise HTTPException(status_code=400, detail="Binary image is not a single-channel image")
+
+    # Calculate the total number of pixels
+    total_pixels = image.size
+
+    # Calculate the number of black pixels
+    black_pixels = cv2.countNonZero(binary_image)
+
+    # Calculate the percentage of black pixels
+    black_pixel_percentage = black_pixels / total_pixels
+    
+    return JSONResponse(content={"wall_ratio": black_pixel_percentage})
+        

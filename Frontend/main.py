@@ -103,17 +103,56 @@ def init(fastapi_app: FastAPI) -> None:
 
 # don't forget the tooltips
 def quality_page_layout():
+    ui.timer(interval=5.0, callback=update_quality_parameter)
     ui.label('Percentage of the area reachable by the robot, defined through the filled area').classes('text-xl')
     ui.linear_progress(size='40px', color=FLAME_RED).bind_value_from(quality_parameters, 'percentage_filled_area')
+    ui.label().bind_text(quality_parameters, 'percentage_filled_area')
     ui.label('Percentage of the walls').classes('text-xl')
     ui.linear_progress(size='40px', color=FLAME_ORANGE).bind_value_from(quality_parameters, 'percentage_walls')
-    ui.timer(interval=1.0, callback=update_quality_parameter)
+    ui.label().bind_text(quality_parameters, 'percentage_walls')
+    # timer may be necessary, but not now
     pass
 
 async def update_quality_parameter():
+    await compute_filled_percentage()
+    await compute_wall_percentage()
+
+async def compute_filled_percentage():
     global quality_parameters
-    quality_parameters.percentage_filled_area = await qc.computeFilledAreaPercentage()
-    quality_parameters.percentage_walls = await qc.computePercentageWalls()
+    filled_area_response = await qc.computeFilledAreaPercentage()
+    if filled_area_response.status_code == 200:
+        try:
+                filled_response_dict = json.loads(filled_area_response.body)  # Parse the JSON string into a dictionary
+                if isinstance(filled_response_dict, dict):  # Ensure it's a dictionary
+                    quality_parameters.percentage_filled_area = filled_response_dict.get('filled_area_ratio')
+
+                else:
+                    ui.notify("Error: Response is not a dictionary")
+        except json.JSONDecodeError:
+                ui.notify("Error: Failed to decode JSON response")
+    elif filled_area_response.status_code == 400:
+        ui.notify('Fill-function was never called, the filled area thus cannot be computed')
+    else:    
+        ui.notify(f"Error: {filled_area_response.body}")
+
+async def compute_wall_percentage():
+    global quality_parameters
+    filled_wall_response = await qc.computePercentageWalls()
+    if filled_wall_response.status_code == 200:
+        try:
+                wall_response_dict = json.loads(filled_wall_response.body)  # Parse the JSON string into a dictionary
+                if isinstance(wall_response_dict, dict):  # Ensure it's a dictionary
+                    quality_parameters.percentage_walls = wall_response_dict.get('wall_ratio')
+
+                else:
+                    ui.notify("Error: Response is not a dictionary")
+        except json.JSONDecodeError:
+                ui.notify("Error: Failed to decode JSON response")
+    elif filled_wall_response.status_code == (400 or 404):
+        ui.notify('A pgm image was never created, the percentage of the wall thus cannot be computed')
+    else:    
+        ui.notify(f"Error: {filled_wall_response.body}")
+
 
 def process_image_name(e: events.UploadEventArguments):
     global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path
@@ -251,7 +290,6 @@ async def on_file_upload(e: events.UploadEventArguments):
                 response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
                 if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
                     ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
-                    print(response_body_dict)  # Print the dictionary of the JSON response
                     visibility = True
                 else:
                     ui.notify("Error: Response is not a dictionary")
