@@ -1,9 +1,7 @@
 import cv2
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 import os
-
-import numpy as np
 
 from Backend.map_preparation.data import FileUploaded
 import logging
@@ -105,8 +103,11 @@ def convert_to_pgm():
         output_path = os.path.join(UPLOAD_DIR, output_file)
         logger.info(f'Attempting to write image to {output_path}')
         
+        # Apply binary threshold
+        _, binary_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY)
+    
         # TODO: Check if pgm needs to be processed wrt mode and negate or if this happens directly in ros!
-        success = cv2.imwrite(output_path, img)
+        success = cv2.imwrite(output_path, binary_img)
         
         if success:
             logger.info(f'Successfully wrote image to {output_path}')
