@@ -14,6 +14,11 @@ pic = None
 yaml = None
 filled = None
 
+raw_image_size = None
+pgm_image_size = None
+filled_pixels = None
+black_pixels = None
+
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,
@@ -76,7 +81,7 @@ def getImageNamesInDir():
 
 
 async def computeFilledAreaPercentage():
-    global filled
+    global filled, raw_image_size, filled_pixels
     if filled == None:
         getImageNamesInDir()
 
@@ -112,19 +117,19 @@ async def computeFilledAreaPercentage():
         # cv2.imwrite(os.path.join(UPLOAD_DIR, 'mask.jpg'), mask)
         
         # Calculate the total number of pixels
-        total_pixels = image.shape[0] * image.shape[1]
+        raw_image_size = image.shape[0] * image.shape[1]
 
         # Calculate the number of pixels within the specified color range
-        color_pixels = cv2.countNonZero(mask)
+        filled_pixels = cv2.countNonZero(mask)
 
         # Calculate the percentage of the specified color
-        color_percentage = color_pixels / total_pixels
+        color_percentage = filled_pixels / raw_image_size
 
-        return JSONResponse(content={"filled_area_ratio": color_percentage})
+        return JSONResponse(content={"filled_area_ratio": color_percentage, "raw_image_size": raw_image_size, "filled_pixels": filled_pixels})
         
 # use pgm image to compute the percentage of obstacles
 async def computePercentageWalls():
-    global pgm
+    global pgm, pgm_image_size, black_pixels
     if pgm == None:
         getImageNamesInDir()
 
@@ -146,20 +151,20 @@ async def computePercentageWalls():
     # Apply the threshold to classify pixels as black or not
     _, binary_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY_INV)
     
-    cv2.imwrite(os.path.join(UPLOAD_DIR, 'mask.pgm'), binary_image)
+    # cv2.imwrite(os.path.join(UPLOAD_DIR, 'mask.pgm'), binary_image)
     
     # Ensure the binary image is single-channel
     if len(binary_image.shape) != 2:
         raise HTTPException(status_code=400, detail="Binary image is not a single-channel image")
 
     # Calculate the total number of pixels
-    total_pixels = image.size
+    pgm_image_size = image.size
 
     # Calculate the number of black pixels
     black_pixels = cv2.countNonZero(binary_image)
 
     # Calculate the percentage of black pixels
-    black_pixel_percentage = black_pixels / total_pixels
+    black_pixel_percentage = black_pixels / pgm_image_size
     
-    return JSONResponse(content={"wall_ratio": black_pixel_percentage})
+    return JSONResponse(content={"wall_ratio": black_pixel_percentage, "pgm_image_size": pgm_image_size, "black_pixels": black_pixels})
         

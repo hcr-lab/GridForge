@@ -176,19 +176,27 @@ def euclidean_distance(point1, point2):
 # don't forget the tooltips
 def quality_page_layout():
     ui.timer(interval=5.0, callback=update_quality_parameter)
+    
     ui.label('Percentage of the area reachable by the robot, defined through the filled area').classes('text-xl')
     ui.linear_progress(size='40px', color=FLAME_RED).bind_value_from(quality_parameters, 'percentage_filled_area')
     ui.label().bind_text(quality_parameters, 'percentage_filled_area')
+    
+    ui.label('area in m² reachable by the robot, defined through the filled area').classes('text-xl')
+    ui.label().bind_text(quality_parameters, 'filled_area')
+    
     ui.label('Percentage of the walls').classes('text-xl')
     ui.linear_progress(size='40px', color=FLAME_ORANGE).bind_value_from(quality_parameters, 'percentage_walls')
     ui.label().bind_text(quality_parameters, 'percentage_walls')
-    # timer may be necessary, but not now
-    pass
+    
+    ui.label('area in m² which is obstructed by walls').classes('text-xl')
+    ui.label().bind_text(quality_parameters, 'wall_area')
 
 async def update_quality_parameter():
     await compute_filled_percentage()
     await compute_wall_percentage()
-
+    quality_parameters.filled_area = (quality_parameters.filled_pixels * yaml_parameters.resolution).__round__(1)
+    quality_parameters.wall_area = (quality_parameters.black_pixels * yaml_parameters.resolution).__round__(1)
+    
 async def compute_filled_percentage():
     global quality_parameters
     filled_area_response = await qc.computeFilledAreaPercentage()
@@ -197,7 +205,9 @@ async def compute_filled_percentage():
                 filled_response_dict = json.loads(filled_area_response.body)  # Parse the JSON string into a dictionary
                 if isinstance(filled_response_dict, dict):  # Ensure it's a dictionary
                     quality_parameters.percentage_filled_area = filled_response_dict.get('filled_area_ratio')
-
+                    quality_parameters.percentage_filled_area = quality_parameters.percentage_filled_area.__round__(4)
+                    quality_parameters.raw_image_size = filled_response_dict.get('raw_image_size')
+                    quality_parameters.filled_pixels = filled_response_dict.get('filled_pixels')
                 else:
                     ui.notify("Error: Response is not a dictionary")
         except json.JSONDecodeError:
@@ -215,7 +225,9 @@ async def compute_wall_percentage():
                 wall_response_dict = json.loads(filled_wall_response.body)  # Parse the JSON string into a dictionary
                 if isinstance(wall_response_dict, dict):  # Ensure it's a dictionary
                     quality_parameters.percentage_walls = wall_response_dict.get('wall_ratio')
-
+                    quality_parameters.percentage_walls = quality_parameters.percentage_walls.__round__(4)
+                    quality_parameters.pgm_image_size = wall_response_dict.get('pgm_image_size')
+                    quality_parameters.black_pixels = wall_response_dict.get('black_pixels')
                 else:
                     ui.notify("Error: Response is not a dictionary")
         except json.JSONDecodeError:
@@ -262,10 +274,6 @@ def parameter_page_layout():
     global yaml_parameters
     if visibility:
         with ui.grid(columns=16).classes('w-full gap-0'):
-            # ui.label('Resolution [m/px]').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
-            # resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution').classes('col-span-full').tooltip(tooltip.RESOLUTION)
-            # ui.label().bind_text_from(resolution, 'value').classes('col-span-4').tooltip(tooltip.RESOLUTION)
-
             ui.label('Origin').classes('text-xl').classes('border p-1').classes('col-span-full').tooltip(tooltip.ORIGIN)
             ui.number('Origin: x [m]', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_x').classes('col-span-5').tooltip(tooltip.ORIGIN_X)
             ui.number('Origin: y [m]', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_y').classes('col-span-5').tooltip(tooltip.ORIGIN_Y)
