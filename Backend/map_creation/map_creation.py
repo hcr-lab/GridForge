@@ -40,8 +40,6 @@ async def download_files(yaml_string: str):
     with open(yaml_file_path, "w") as yaml_file:
         yaml_file.write(processed_string)
     
-    convert_to_pgm()
-    
     response_body = FileUploaded(filename=file_name,
                            location=yaml_file_path,
                            success=True,
@@ -83,13 +81,14 @@ def process_yaml_string(yaml_string: str):
     
     return '\n'.join(output_lines)
 
-def convert_to_pgm():
+async def convert_to_pgm(thresh: int, yaml_string: str):
     # get the name of the uploaded image from the data of the processed yaml file
     # and the basename for adding the pgm extension
+    process_yaml_string(yaml_string)
     input_file = data.get('image')
     base_name, _ = os.path.splitext(data.get('image'))
     output_file = base_name + '.pgm'
-
+    logger.info(f'threshold uses: {thresh}')
     negate = int(data.get('negate'))
     if negate == 0:
         img = cv2.imread(os.path.join(UPLOAD_DIR, input_file), cv2.IMREAD_GRAYSCALE) 
@@ -104,7 +103,7 @@ def convert_to_pgm():
         logger.info(f'Attempting to write image to {output_path}')
         
         # Apply binary threshold
-        _, binary_img = cv2.threshold(img, thresh=210, maxval=255, type=cv2.THRESH_BINARY)
+        _, binary_img = cv2.threshold(img, thresh=thresh, maxval=255, type=cv2.THRESH_BINARY)
     
         # TODO: Check if pgm needs to be processed wrt mode and negate or if this happens directly in ros!
         success = cv2.imwrite(output_path, binary_img)

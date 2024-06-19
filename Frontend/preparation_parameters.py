@@ -10,5 +10,7 @@ class Preparation_type(str, Enum):
 class Preparation_parameters(BaseModel):
     thickness: int = 3
     preparation_type: Preparation_type = Preparation_type.point
-    # add parameters for pencil, line and quader here
-    # ensure only one is enabled
+    length: float = 1
+    pixels: float = 1
+    # only between 0 and 255! 
+    pgm_threshold: int = 155

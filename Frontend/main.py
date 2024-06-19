@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import math
 import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
@@ -18,6 +19,7 @@ import time
 from pydantic_yaml import to_yaml_str
 
 # global variables
+pgm_ii = any
 ii = any
 thickness = 3
 visibility = True
@@ -45,6 +47,7 @@ FLAME_YELLOW = '#F2E738'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 image_path = os.path.join(UPLOAD_DIR, complete_picture)
 filled_image_path = os.path.join(UPLOAD_DIR, 'filled_image.jpg')
+pgm_path = os.path.join(UPLOAD_DIR, complete_pgm)
 
 # make directory with uploaded files accessible to frontend
 app.add_static_files(url_path='/uploaded_files', local_directory='uploaded_files')
@@ -77,11 +80,16 @@ def init(fastapi_app: FastAPI) -> None:
             eraser()
             # TODO: enable zoom
             
+        @router.add('/parameter')
+        def show_parameter():
+            ui.label('Set YAML Parameters').classes('text-2xl')
+            parameter_page_layout()
+        
         @router.add('/download')
         def show_download():
-            ui.label('Set YAML Parameters').classes('text-2xl')
+            ui.label('Set Resolution and download').classes('text-2xl')
             download_page_layout()
-
+            
         @router.add('/quality')
         def show_quality():
             ui.label('Quality parameters').classes('text-2xl')
@@ -92,6 +100,7 @@ def init(fastapi_app: FastAPI) -> None:
             ui.button('Upload', on_click=lambda: router.open(show_upload)).classes('w-32').tooltip(tooltip.UPLOAD_BUTTON)
             ui.button('Pencil', on_click=lambda: router.open(show_pencil)).classes('w-32').tooltip(tooltip.PENCIL_BUTTON)
             ui.button('Eraser', on_click=lambda: router.open(show_eraser)).classes('w-32').tooltip(tooltip.ERASER_BUTTON)
+            ui.button('Parameter', on_click=lambda: router.open(show_parameter)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32').tooltip(tooltip.QUALITY_BUTTON)
             
@@ -100,6 +109,69 @@ def init(fastapi_app: FastAPI) -> None:
 
     # mount path is homepage, secret is randomly chosen
     ui.run_with(fastapi_app, storage_secret='secret') 
+
+def compute_resolution():
+    global yaml_parameters
+    yaml_parameters.resolution = (preparation_parameters.length/preparation_parameters.pixels).__round__(4)
+    
+    
+def download_page_layout() -> None:
+    global ii, image_reload_timer
+    ui.label('pgm creation threshold').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
+    pgm_thresh = ui.slider(min=0, max=255, step=1).bind_value(preparation_parameters, 'pgm_threshold').classes('col-span-full').tooltip(tooltip.RESOLUTION)
+    ui.label().bind_text_from(pgm_thresh, 'value').classes('col-span-4').tooltip(tooltip.RESOLUTION)
+    
+    ui.button('Create pgm with set threshold', on_click=create_pgm)
+    
+    ui.label('Length of the drawn line').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
+    ui.number('Length of the drawn line [m]', value=1.0, format='%.2f', step=0.5).bind_value(preparation_parameters, 'length').classes('col-span-5').tooltip(tooltip.ORIGIN_X)
+    ui.notify(f'length set to {preparation_parameters.length}')
+    
+    ui.label('Pixel length of the drawn line').classes('text-xl') 
+    ui.label().bind_text(preparation_parameters, 'pixels')
+        
+    ui.timer(interval=1.0, callback = compute_resolution)
+    ui.label('Resolution [m/px] based on the given length and pixel span of the line drawn').classes('text-xl') 
+    ui.label().bind_text(yaml_parameters, 'resolution')
+
+    ui.button('Confirm Values and download map files', on_click=download_map_files).classes('col-span-full').tooltip(tooltip.DOWNLOAD_BUTTON)
+
+    if os.path.exists(image_path):
+        with ui.row():
+            ii = ui.interactive_image(image_path, on_mouse=handle_length, events=['mousedown', 'mouseup'],cross='red')
+        image_reload_timer.cancel()
+        image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}'))
+
+async def create_pgm():
+    thresh = preparation_parameters.pgm_threshold
+    yaml_string = to_yaml_str(yaml_parameters)
+    await mc.convert_to_pgm(thresh, yaml_string)
+    ui.notify(f'pgm created with threshold set to {thresh}, check file {pgm_path} before downloading')
+
+async def handle_length(e: events.MouseEventArguments):
+    global start_point, end_point, clicked, preparation_parameters
+    color = 'red' 
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        # set empty content to allow only one line present in the picture
+        ii.set_content("")
+        ii.content += f'<line x1="{start_point[0]}" y1="{start_point[1]}" x2="{end_point[0]}" y2="{end_point[1]}" style="stroke:{color};stroke-width:2" />'
+        preparation_parameters.pixels = euclidean_distance(start_point, end_point)
+        ui.notify(f'pixel length set to {preparation_parameters.pixels}')
+    else:
+        ui.notify('start and endpoint not set correctly')
+
+def euclidean_distance(point1, point2):
+    x1, y1 = point1
+    x2, y2 = point2
+    distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    return distance
 
 # don't forget the tooltips
 def quality_page_layout():
@@ -186,13 +258,13 @@ def process_image_name(e: events.UploadEventArguments):
         filled_image_path = os.path.join(UPLOAD_DIR, complete_filled)
         return True
     
-def download_page_layout(): 
+def parameter_page_layout(): 
     global yaml_parameters
     if visibility:
         with ui.grid(columns=16).classes('w-full gap-0'):
-            ui.label('Resolution [m/px]').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
-            resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution').classes('col-span-full').tooltip(tooltip.RESOLUTION)
-            ui.label().bind_text_from(resolution, 'value').classes('col-span-4').tooltip(tooltip.RESOLUTION)
+            # ui.label('Resolution [m/px]').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
+            # resolution = ui.slider(min=0.01, max=0.5, step=0.01).bind_value(yaml_parameters, 'resolution').classes('col-span-full').tooltip(tooltip.RESOLUTION)
+            # ui.label().bind_text_from(resolution, 'value').classes('col-span-4').tooltip(tooltip.RESOLUTION)
 
             ui.label('Origin').classes('text-xl').classes('border p-1').classes('col-span-full').tooltip(tooltip.ORIGIN)
             ui.number('Origin: x [m]', value=0.0, format='%.2f', step=0.5).bind_value(yaml_parameters, 'origin_x').classes('col-span-5').tooltip(tooltip.ORIGIN_X)
@@ -213,8 +285,6 @@ def download_page_layout():
 
             ui.label('Mode').classes('text-xl').classes('col-span-4').tooltip(tooltip.MODE)
             ui.select(['trinary', 'scale', 'raw']).bind_value(yaml_parameters, 'mode').classes('col-span-12').tooltip(tooltip.MODE)
-
-            ui.button('Confirm Values and download map files', on_click=download_map_files).classes('col-span-full').tooltip(tooltip.DOWNLOAD_BUTTON)
     else:
         no_pic()
         
