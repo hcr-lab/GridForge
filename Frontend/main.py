@@ -140,7 +140,7 @@ def download_page_layout() -> None:
         with ui.row():
             ii = ui.interactive_image(image_path, on_mouse=handle_length, events=['mousedown', 'mouseup'],cross='red')
         image_reload_timer.cancel()
-        image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}'))
+        image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
 
 async def create_pgm():
     thresh = preparation_parameters.pgm_threshold
