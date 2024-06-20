@@ -254,7 +254,7 @@ def process_image_name(e: events.UploadEventArguments):
             complete_yaml = "".join([yaml_parameters.image, '.yaml'])
             complete_pgm = "".join([yaml_parameters.image, '.pgm'])
             
-            yaml_parameters.image = complete_picture
+            yaml_parameters.image = complete_pgm
             e.name = complete_picture
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
         # else use default picture name for both
