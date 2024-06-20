@@ -262,7 +262,7 @@ def process_image_name(e: events.UploadEventArguments):
             complete_picture = "".join([picture_name, file_extension]) 
             complete_yaml = "".join([picture_name, '.yaml'])
             complete_pgm = "".join([picture_name, '.pgm'])
-            yaml_parameters.image = complete_picture
+            yaml_parameters.image = complete_pgm
             e.name = complete_picture
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
         # create filled image path with respect to file extension to avoid conversion issues
