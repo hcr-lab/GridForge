@@ -47,6 +47,7 @@ FLAME_YELLOW = '#F2E738'
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 image_path = os.path.join(UPLOAD_DIR, complete_picture)
 filled_image_path = os.path.join(UPLOAD_DIR, 'filled_image.jpg')
+cut_image_path = os.path.join(UPLOAD_DIR, 'cut_image.jpg')
 pgm_path = os.path.join(UPLOAD_DIR, complete_pgm)
 
 # make directory with uploaded files accessible to frontend
@@ -239,7 +240,7 @@ async def compute_wall_percentage():
 
 
 def process_image_name(e: events.UploadEventArguments):
-    global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path
+    global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path, cut_image_path
 
     # get the file extension from the uploaded picture and save the file extension 
     _, file_extension = os.path.splitext(e.name)
@@ -267,6 +268,8 @@ def process_image_name(e: events.UploadEventArguments):
             image_path = os.path.join(UPLOAD_DIR, complete_picture)
         # create filled image path with respect to file extension to avoid conversion issues
         complete_filled = "".join(['filled_image', file_extension])
+        cut_image_name = "".join(['cut_image', file_extension])
+        cut_image_path = os.path.join(UPLOAD_DIR, cut_image_name)
         filled_image_path = os.path.join(UPLOAD_DIR, complete_filled)
         return True
     
@@ -334,7 +337,10 @@ def pencil() -> None:
             ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
             
             ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.PENCIL)
-            ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
+            ui.toggle(['point', 'line', 'square', 'fill', 'cut'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
+            
+            ui.button('Show cut image', on_click=showCutImage)
+            ui.button('Copy cut image to real image', on_click=mp.copyCutImage)
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
     else:
         no_pic
@@ -350,12 +356,18 @@ def eraser() -> None:
             ui.label().bind_text_from(thickness, 'value').classes('text-xl').classes('border p-1')
             
             ui.label('Type of processing').classes('text-xl').classes('border p-1').tooltip(tooltip.ERASER)
-            ui.toggle(['point', 'line', 'square', 'fill'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
-        
+            ui.toggle(['point', 'line', 'square', 'fill', 'cut'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
+            
+            ui.button('Show cut image', on_click=showCutImage)
+            ui.button('Copy cut image to real image', on_click=mp.copyCutImage)
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'],cross='red')
     else:
         no_pic()    
     
+def showCutImage():
+    global ii
+    ii.set_source(os.path.join(UPLOAD_DIR,'cut_image.jpg'))
+
 async def on_file_upload(e: events.UploadEventArguments):
     global visibility, yaml_parameters
     
@@ -426,6 +438,22 @@ async def pencil_square(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
 
+async def cut_out(e: events.MouseEventArguments):
+    global start_point, end_point, clicked
+    if e.type == 'mousedown':
+        start_point = (e.image_x, e.image_y)
+        clicked.clear()
+    elif e.type == 'mouseup':
+        end_point = (e.image_x, e.image_y)
+        clicked.set()
+    await clicked.wait()
+    if start_point and end_point:
+        ui.notify(f'start point is {start_point}, end point is {end_point}')
+        await mp.cutOut(start_point, end_point)
+
+    else:
+        ui.notify('start and endpoint not set correctly')
+        
 async def fill_area(e: events.MouseEventArguments):
     # only listens to mousedown to prevent to many dots from spawning
     if e.type == 'mousedown':
@@ -442,7 +470,9 @@ async def handle_pencil(e: events.MouseEventArguments):
     elif preparation_parameters.preparation_type == 'square':
         await pencil_square(e)    
     elif preparation_parameters.preparation_type == 'fill':
-        await fill_area(e)     
+        await fill_area(e)   
+    elif preparation_parameters.preparation_type == 'cut':
+        await cut_out(e)  
     else:
         ui.notify(f'no preparation type chosen')
             
@@ -455,6 +485,8 @@ async def handle_eraser(e: events.MouseEventArguments):
         await erase_square(e)    
     elif preparation_parameters.preparation_type == 'fill':
         await fill_area(e)  
+    elif preparation_parameters.preparation_type == 'cut':
+        await cut_out(e)  
     else:
         ui.notify(f'no preparation type chosen')
 
@@ -497,6 +529,7 @@ async def erase_square(e: events.MouseEventArguments):
 
 # to avoid caching issues, each URL must be unique to allow the browser to reload the image
 # and to avoid flickering images due to heavy switching, the timer needs to be canceld and re-inizialized again 
+# TODO: add some more conditions here to perfectly show cut image
 def reload_image():
     global image_reload_timer
     if preparation_parameters.preparation_type != 'fill':
@@ -506,5 +539,10 @@ def reload_image():
         if os.path.exists(filled_image_path):
             image_reload_timer.cancel()
             image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{filled_image_path}?{time.time()}'))
+    elif preparation_parameters.preparation_type == 'cut':
+        if os.path.exists(cut_image_path):
+            image_reload_timer.cancel()
+            image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{cut_image_path}?{time.time()}'))
+   
     else: 
         ui.notify('No picture chosen or picture deleted, please start by uploading a picture')

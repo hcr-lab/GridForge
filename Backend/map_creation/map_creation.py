@@ -12,6 +12,7 @@ UPLOAD_DIR = "uploaded_files"
 file_name = "uploaded_file.yaml"
 yaml_file_path = os.path.join(UPLOAD_DIR, file_name)
 data = {}
+image_path = os.path.join(UPLOAD_DIR, 'uploaded_file.jpg')
 
 # Set up logging configuration
 logging.basicConfig(
@@ -49,7 +50,7 @@ async def download_files(yaml_string: str):
 # since the Yaml_parameter class is not in the correct format, 
 # it needs to be processed into the correct format
 def process_yaml_string(yaml_string: str):
-    global file_name, yaml_file_path, data
+    global file_name, yaml_file_path, data, image_path
 
     lines = yaml_string.split('\n')
     
@@ -63,8 +64,10 @@ def process_yaml_string(yaml_string: str):
     base_name, _ = os.path.splitext(data.get('image'))
     yaml_file = base_name + '.yaml'
     yaml_file_path = os.path.join(UPLOAD_DIR, yaml_file)
-    logger.info(f'name of file set to {file_name}')
-    
+    logger.info(f'name of yaml file set to {file_name}')
+ 
+    setImagePath(base_name)
+   
     # Modify the values as needed
     if 'negate' in data:
         data['negate'] = '0' if data['negate'].lower() == 'false' else '1'
@@ -91,7 +94,7 @@ async def convert_to_pgm(thresh: int, yaml_string: str):
     logger.info(f'threshold uses: {thresh}')
     negate = int(data.get('negate'))
     if negate == 0:
-        img = cv2.imread(os.path.join(UPLOAD_DIR, input_file), cv2.IMREAD_GRAYSCALE) 
+        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) 
         logger.info(f'Image read from imread: {img is not None}')
         
         if img is None:
@@ -117,3 +120,11 @@ async def convert_to_pgm(thresh: int, yaml_string: str):
         # invert image if necessary
         pass
     
+def setImagePath(basename):
+    global image_path
+    for ext in ['.jpg', '.png']:
+        name = "".join([basename, ext])
+        path = os.path.join(UPLOAD_DIR, name)
+        if os.path.isfile(path):
+            logger.info(f'image path set to {path}')
+            image_path = path

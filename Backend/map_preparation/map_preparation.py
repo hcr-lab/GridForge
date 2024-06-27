@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse, JSONResponse
 import logging
 import cv2
 import numpy as np
+from pydantic import BaseModel
 
 from Backend.map_preparation.data import FileUploaded
 
@@ -30,6 +31,7 @@ UPLOAD_DIR = "uploaded_files"
 FILENAME = "uploaded_file.jpg"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 image_path = os.path.join(UPLOAD_DIR, FILENAME)
+cut_image_path = None
 
 @app.get('/text')
 def show_text(text: str):
@@ -97,10 +99,6 @@ async def addPoint(x: float, y: float, thickness: int):
 
 @app.post('/pencil_line')
 async def addLine(start_point: tuple, end_point: tuple, thickness: int):
-    # x = int(x)
-    # y = int(y)
-    # if x is None or y is None:
-    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -186,10 +184,6 @@ async def eraseLine(start_point: tuple, end_point: tuple, thickness: int):
 
 @app.post('/eraser_square')
 async def eraseSquare(start_point: tuple, end_point: tuple):
-    # x = int(x)
-    # y = int(y)
-    # if x is None or y is None:
-    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -208,6 +202,101 @@ async def eraseSquare(start_point: tuple, end_point: tuple):
 
     return {"message": "Image modified successfully"}
 
+# @app.post('/cut_out')
+# async def cutOut(start_point: tuple, end_point: tuple):
+#     global image_path
+#     logger.info(f'start_point: {start_point}, end_point: {end_point}')
+    
+#     if not os.path.exists(image_path):
+#         raise HTTPException(status_code=404, detail="Image not found")
+
+#     # Load the image
+#     image = cv2.imread(image_path)
+
+#     if image is None:
+#         raise HTTPException(status_code=404, detail="Failed to load image")
+
+#     # Convert points to integers
+#     start_point = (int(start_point[0]), int(start_point[1]))
+#     end_point = (int(end_point[0]), int(end_point[1]))
+
+#     # Determine the bounding box coordinates
+#     x1, y1 = start_point
+#     x2, y2 = end_point
+#     x1, x2 = min(x1, x2), max(x1, x2)
+#     y1, y2 = min(y1, y2), max(y1, y2)
+
+#     # Ensure the coordinates are within the image bounds
+#     height_img, width_img = image.shape[:2]
+#     x1 = max(0, min(width_img, x1))
+#     x2 = max(0, min(width_img, x2))
+#     y1 = max(0, min(height_img, y1))
+#     y2 = max(0, min(height_img, y2))
+
+#     if x1 == x2 or y1 == y2:
+#         raise HTTPException(status_code=400, detail="Invalid coordinates: width or height cannot be zero.")
+
+#     # Extract the rectangle region
+#     cut_image = image[y1:y2, x1:x2]
+
+#     # Save the modified image
+#     cut_image_path = os.path.join(UPLOAD_DIR, 'cut_image.jpg')
+#     cv2.imwrite(cut_image_path, cut_image)
+
+#     return {"message": "Image modified successfully", "cut_image_path": image_path}
+
+@app.post('/cut_out')
+async def cutOut(start_point: tuple, end_point: tuple):
+    global cut_image_path
+    logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Load the image
+    image = cv2.imread(image_path)
+
+
+    # Convert points to integers
+    start_point = (int(start_point[0]), int(start_point[1]))
+    end_point = (int(end_point[0]), int(end_point[1]))
+
+    # Calculate the center and size of the rectangle
+    center_x = (start_point[0] + end_point[0]) / 2
+    center_y = (start_point[1] + end_point[1]) / 2
+    width = abs(end_point[0] - start_point[0])
+    height = abs(end_point[1] - start_point[1])
+
+    # Ensure the coordinates are within the image bounds
+    height_img, width_img = image.shape[:2]
+    center_x = max(0, min(width_img, center_x))
+    center_y = max(0, min(height_img, center_y))
+    width = max(0, min(width_img, width))
+    height = max(0, min(height_img, height))
+
+    logger.info(f'center_x = {center_x}')
+    logger.info(f'center_y = {center_y}')
+    logger.info(f'width = {width}')
+    logger.info(f'height = {height}')
+    
+    if width == 0 or height == 0:
+        raise HTTPException(status_code=400, detail="Invalid coordinates: width or height cannot be zero.")
+
+    # Extract the rectangle region
+    cut_image = cv2.getRectSubPix(image, (int(width), int(height)), (center_x, center_y))
+
+    # Save the modified image
+    cut_image_path = os.path.join(UPLOAD_DIR, 'cut_image.jpg')
+    cv2.imwrite(cut_image_path, cut_image)
+    
+    # copyCutImage()
+    
+    return {"message": "Image modified successfully"}
+
+def copyCutImage():
+    if os.path.exists(cut_image_path):
+        image = cv2.imread(cut_image_path)
+        cv2.imwrite(image_path, image)
+        
 @app.post('/fillArea')
 async def fillArea(x: float, y: float):
         x = int(x)
