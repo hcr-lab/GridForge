@@ -195,8 +195,8 @@ def quality_page_layout():
 async def update_quality_parameter():
     await compute_filled_percentage()
     await compute_wall_percentage()
-    quality_parameters.filled_area = (quality_parameters.filled_pixels * yaml_parameters.resolution).__round__(1)
-    quality_parameters.wall_area = (quality_parameters.black_pixels * yaml_parameters.resolution).__round__(1)
+    quality_parameters.filled_area = (quality_parameters.filled_pixels * (yaml_parameters.resolution * yaml_parameters.resolution)).__round__(1)
+    quality_parameters.wall_area = (quality_parameters.black_pixels * (yaml_parameters.resolution * yaml_parameters.resolution)).__round__(1)
     
 async def compute_filled_percentage():
     global quality_parameters
