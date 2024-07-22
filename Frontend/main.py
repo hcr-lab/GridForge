@@ -6,9 +6,9 @@ import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
 from Frontend.router import Router
-import Backend.map_preparation.map_preparation as mp
-import Backend.map_creation.map_creation as mc
-import Backend.quality_check.quality_check as qc
+import Backend.map_creation.webservice_map_creation as mc
+import Backend.quality_check.webservice_quality_check as qc
+import Backend.map_preparation.webservice_map_preparation as mp
 import json
 import os
 from Frontend.preparation_parameters import Preparation_parameters
@@ -17,6 +17,7 @@ from Frontend.tooltips import Tooltip_Enum
 from Frontend.quality_parameters import Quality_parameters
 import time 
 from pydantic_yaml import to_yaml_str
+from fastapi import HTTPException 
 
 # global variables
 pgm_ii = any
@@ -54,7 +55,6 @@ pgm_path = os.path.join(UPLOAD_DIR, complete_pgm)
 app.add_static_files(url_path='/uploaded_files', local_directory='uploaded_files')
         
 def init(fastapi_app: FastAPI) -> None: 
-    # ui.page definiert frontend-Seite mit Route
     @ui.page('/')
     def show():
         router = Router()
@@ -200,23 +200,27 @@ async def update_quality_parameter():
     
 async def compute_filled_percentage():
     global quality_parameters
-    filled_area_response = await qc.computeFilledAreaPercentage()
-    if filled_area_response.status_code == 200:
-        try:
-                filled_response_dict = json.loads(filled_area_response.body)  # Parse the JSON string into a dictionary
-                if isinstance(filled_response_dict, dict):  # Ensure it's a dictionary
-                    quality_parameters.percentage_filled_area = filled_response_dict.get('filled_area_ratio')
-                    quality_parameters.percentage_filled_area = quality_parameters.percentage_filled_area.__round__(4)
-                    quality_parameters.raw_image_size = filled_response_dict.get('raw_image_size')
-                    quality_parameters.filled_pixels = filled_response_dict.get('filled_pixels')
-                else:
-                    ui.notify("Error: Response is not a dictionary")
-        except json.JSONDecodeError:
-                ui.notify("Error: Failed to decode JSON response")
-    elif filled_area_response.status_code == 400:
-        ui.notify('Fill-function was never called, the filled area thus cannot be computed')
-    else:    
-        ui.notify(f"Error: {filled_area_response.body}")
+    try:
+        filled_area_response = await qc.computeFilledAreaPercentage()
+        if filled_area_response.status_code == 200:
+            try:
+                    filled_response_dict = json.loads(filled_area_response.body)  # Parse the JSON string into a dictionary
+                    if isinstance(filled_response_dict, dict):  # Ensure it's a dictionary
+                        quality_parameters.percentage_filled_area = filled_response_dict.get('filled_area_ratio')
+                        quality_parameters.percentage_filled_area = quality_parameters.percentage_filled_area.__round__(4)
+                        quality_parameters.raw_image_size = filled_response_dict.get('raw_image_size')
+                        quality_parameters.filled_pixels = filled_response_dict.get('filled_pixels')
+                    else:
+                        ui.notify("Error: Response is not a dictionary")
+            except json.JSONDecodeError:
+                    ui.notify("Error: Failed to decode JSON response")
+        elif filled_area_response.status_code == 400:
+            ui.notify('Fill-function was never called, the filled area thus cannot be computed')
+        else:    
+            ui.notify(f"Error: {filled_area_response.body}")
+    except HTTPException:
+        ui.notify(f'Exception occured')
+        
 
 async def compute_wall_percentage():
     global quality_parameters

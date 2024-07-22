@@ -2,50 +2,23 @@ import os
 import shutil
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
-import logging
 import cv2
 import numpy as np
-from pydantic import BaseModel
 
-from Backend.map_preparation.data import FileUploaded
+from Backend.map_preparation.FileUploaded import FileUploaded
+from Backend.map_preparation.service_map_preparation import cut_image_path, image_path, logger, UPLOAD_DIR, FILENAME
 
 app = FastAPI()
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
-# Set up logging configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("app.log"),
-        logging.StreamHandler()
-    ]
-)
-
-# Create a logger instance
-logger = logging.getLogger(__name__)
-
-UPLOAD_DIR = "uploaded_files"
-FILENAME = "uploaded_file.jpg"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-image_path = os.path.join(UPLOAD_DIR, FILENAME)
-cut_image_path = None
-
-@app.get('/text')
-def show_text(text: str):
-    logging.info('method reached')
-    return JSONResponse(content={'header' : text, 
-                                 'this is the content': 'content displayed'})
-
-# TODO: provide function to save image as pgm before it is processed 
 @app.post('/save')
 async def save_file(b: bytes, name: str):
     # file is not correctly overwritten
     global image_path
     image_path = os.path.join(UPLOAD_DIR, name)
-    logging.info(f'image path set to {image_path}')
+    logger.info(f'image path set to {image_path}')
 
     # Iterate over the files and directories in the specified directory
     for filename in os.listdir(UPLOAD_DIR):
@@ -119,10 +92,6 @@ async def addLine(start_point: tuple, end_point: tuple, thickness: int):
 
 @app.post('/draw_square')
 async def drawSquare(start_point: tuple, end_point: tuple):
-    # x = int(x)
-    # y = int(y)
-    # if x is None or y is None:
-    #     raise HTTPException(status_code=400, detail="Coordinates not provided")
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -249,10 +218,6 @@ async def cutOut(start_point: tuple, end_point: tuple):
     
     return {"message": "Image modified successfully"}
 
-def copyCutImage():
-    if os.path.exists(cut_image_path):
-        image = cv2.imread(cut_image_path)
-        cv2.imwrite(image_path, image)
         
 @app.post('/fillArea')
 async def fillArea(x: float, y: float):
@@ -285,3 +250,9 @@ async def fillArea(x: float, y: float):
         cv2.imwrite(filled_image_path, image)
 
         return JSONResponse(content={"message": "Image modified successfully", "image_path": filled_image_path})
+
+@app.post('/copyCutImage')
+def copyCutImage():
+    if os.path.exists(cut_image_path):
+        image = cv2.imread(cut_image_path)
+        cv2.imwrite(image_path, image)

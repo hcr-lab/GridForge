@@ -1,10 +1,8 @@
-import logging
 import os
+import logging
 import cv2
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
 import numpy as np
-
 
 UPLOAD_DIR = "uploaded_files"
 
@@ -79,17 +77,13 @@ def getImageNamesInDir():
     except Exception as e:
         return f"An error occurred: {e}"    
 
-
-async def computeFilledAreaPercentage():
-    global filled, raw_image_size, filled_pixels
+def filledArea():
     if filled == None:
         getImageNamesInDir()
-
     # if filled is still None after calling getImagesInDir,
     # then fill function was never called and UI should respond accordingly without raising an exception
     if filled == None:
-        return JSONResponse(status_code=400, content = {"filled_area_ratio": 0.0})
-        # raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(status_code=404, detail="Image not found")
     else:
         # Load the image
         image = cv2.imread(filled)
@@ -121,23 +115,17 @@ async def computeFilledAreaPercentage():
 
         # Calculate the number of pixels within the specified color range
         filled_pixels = cv2.countNonZero(mask)
-
-        # Calculate the percentage of the specified color
-        color_percentage = filled_pixels / raw_image_size
-
-        return JSONResponse(content={"filled_area_ratio": color_percentage, "raw_image_size": raw_image_size, "filled_pixels": filled_pixels})
         
-# use pgm image to compute the percentage of obstacles
-async def computePercentageWalls():
-    global pgm, pgm_image_size, black_pixels
+        return filled_pixels, raw_image_size
+    
+def blackArea():
     if pgm == None:
         getImageNamesInDir()
 
     # if pgm is still None after calling getImagesInDir,
     # then the createPGM function was never called and UI should respond accordingly without raising an exception
     if pgm == None:
-        return JSONResponse(status_code=400, content = {"filled_area_ratio": 0.0})
-        # raise HTTPException(status_code=404, detail="Image not found")
+        raise HTTPException(status_code=404, detail="Image not found")
     else:
         # Load the image
         image = cv2.imread(pgm, cv2.IMREAD_GRAYSCALE)
@@ -162,9 +150,5 @@ async def computePercentageWalls():
 
     # Calculate the number of black pixels
     black_pixels = cv2.countNonZero(binary_image)
-
-    # Calculate the percentage of black pixels
-    black_pixel_percentage = black_pixels / pgm_image_size
     
-    return JSONResponse(content={"wall_ratio": black_pixel_percentage, "pgm_image_size": pgm_image_size, "black_pixels": black_pixels})
-        
+    return black_pixels, pgm_image_size
