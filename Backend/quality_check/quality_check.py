@@ -134,7 +134,7 @@ async def computePercentageWalls():
         getImageNamesInDir()
 
     # if pgm is still None after calling getImagesInDir,
-    # then download function was never called and UI should respond accordingly without raising an exception
+    # then the createPGM function was never called and UI should respond accordingly without raising an exception
     if pgm == None:
         return JSONResponse(status_code=400, content = {"filled_area_ratio": 0.0})
         # raise HTTPException(status_code=404, detail="Image not found")

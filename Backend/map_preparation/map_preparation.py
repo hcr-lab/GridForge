@@ -202,49 +202,6 @@ async def eraseSquare(start_point: tuple, end_point: tuple):
 
     return {"message": "Image modified successfully"}
 
-# @app.post('/cut_out')
-# async def cutOut(start_point: tuple, end_point: tuple):
-#     global image_path
-#     logger.info(f'start_point: {start_point}, end_point: {end_point}')
-    
-#     if not os.path.exists(image_path):
-#         raise HTTPException(status_code=404, detail="Image not found")
-
-#     # Load the image
-#     image = cv2.imread(image_path)
-
-#     if image is None:
-#         raise HTTPException(status_code=404, detail="Failed to load image")
-
-#     # Convert points to integers
-#     start_point = (int(start_point[0]), int(start_point[1]))
-#     end_point = (int(end_point[0]), int(end_point[1]))
-
-#     # Determine the bounding box coordinates
-#     x1, y1 = start_point
-#     x2, y2 = end_point
-#     x1, x2 = min(x1, x2), max(x1, x2)
-#     y1, y2 = min(y1, y2), max(y1, y2)
-
-#     # Ensure the coordinates are within the image bounds
-#     height_img, width_img = image.shape[:2]
-#     x1 = max(0, min(width_img, x1))
-#     x2 = max(0, min(width_img, x2))
-#     y1 = max(0, min(height_img, y1))
-#     y2 = max(0, min(height_img, y2))
-
-#     if x1 == x2 or y1 == y2:
-#         raise HTTPException(status_code=400, detail="Invalid coordinates: width or height cannot be zero.")
-
-#     # Extract the rectangle region
-#     cut_image = image[y1:y2, x1:x2]
-
-#     # Save the modified image
-#     cut_image_path = os.path.join(UPLOAD_DIR, 'cut_image.jpg')
-#     cv2.imwrite(cut_image_path, cut_image)
-
-#     return {"message": "Image modified successfully", "cut_image_path": image_path}
-
 @app.post('/cut_out')
 async def cutOut(start_point: tuple, end_point: tuple):
     global cut_image_path
