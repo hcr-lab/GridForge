@@ -62,6 +62,8 @@ def init(fastapi_app: FastAPI) -> None:
     """
     @ui.page('/')
     def show():
+        ui.page_title('GridForge')
+
         router = Router()
 
         # Hochladen des Bilds ermöglichen
@@ -109,13 +111,52 @@ def init(fastapi_app: FastAPI) -> None:
             ui.button('Parameter', on_click=lambda: router.open(show_parameter)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32').tooltip(tooltip.QUALITY_BUTTON)
+            ui.button('Tutorial', on_click=lambda: left_drawer.toggle()).props('flat color=white')
+            
+            with ui.left_drawer().classes('bg-blue-100') as left_drawer:
+                left_drawer.hide()
+                ui.label('Tutorial')
+                with ui.stepper().props('vertical').classes('w-full') as stepper:
+                    with ui.step('Upload'):
+                        ui.label('Upload a jpg or png picture and maybe give it a name')
+                        with ui.stepper_navigation():
+                            ui.button('Next', on_click=stepper.next)
+                    with ui.step('Pencil and Eraser'):
+                        ui.label('Alter the picture by drawing or erasing stuff. Possible options are point, line and square. Thickness ranges from 1 to 20 and defines the pixel width of line and point.')
+                        ui.label('Fill will create a new picture and show it. The red area defines the drivable area of the robot.')
+                        ui.label('Cut allows to decrease the size of the image. Show the cutted image with the button and if it is correct, save it with click to the other button.')
+                        with ui.stepper_navigation():
+                            ui.button('Next', on_click=stepper.next)
+                            ui.button('Back', on_click=stepper.previous).props('flat')
+                    with ui.step('Parameter'):
+                        ui.label('Set parameters for the yaml-file representation. Resolution is set in the Download-page.')
+                        ui.label('Values are directly bound to a data structure and thus automatically saved')
+                        ui.label('You need to visit this page at least once.')
+                        with ui.stepper_navigation():
+                            ui.button('Next', on_click=stepper.next)
+                            ui.button('Back', on_click=stepper.previous).props('flat')
+                    with ui.step('Download'):
+                        ui.label('Here, you can create the pgm-file based on your processed image.')
+                        ui.label(' If it isn\'t directly grayscale, you can change the threshold (range 0 to 255). The higher the value, the more colored pixels are recognized as obstacles.')
+                        ui.label('You also need to compute the resolution by drawing a line on the map and enter the measured length in meters into the textbox. If the computed resolution is sensible, confirm the values and download both pgm and yaml-file by clicking the button.')
+                        with ui.stepper_navigation():
+                            ui.button('Next', on_click=stepper.next)
+                            ui.button('Back', on_click=stepper.previous).props('flat')     
+                    with ui.step('Quality'):
+                        ui.label('Here, different quality metrics are displayed. Currently, only the filled area and the area of obstacles are displayed.')
+                        ui.label('If Fill or create pgm wasn\'t called yet, the respective value is 0.')
+                        with ui.stepper_navigation():
+                            ui.button('Next', on_click=stepper.next)
+                            ui.button('Back', on_click=stepper.previous).props('flat')                                
             
         # this places the content which should be displayed
         router.frame().classes('w-full p-4 bg-gray-100')
-
+        
     # mount path is homepage, secret is randomly chosen
     ui.run_with(fastapi_app, storage_secret='secret') 
 
+
+    
 def compute_resolution() -> None:
     """ computes the resolution based on length and amount of pixels 
         and sets the resolution in the yaml-parameter file  
