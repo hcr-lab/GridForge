@@ -14,8 +14,16 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
 @app.post('/save')
-async def save_file(b: bytes, name: str):
-    # file is not correctly overwritten
+async def save_file(b: bytes, name: str) -> JSONResponse:
+    """sets the image path and saves the image to uploaded_files
+
+    Args:
+        b (bytes): bytes of the uploaded image
+        name (str): name of the uploaded image
+
+    Returns:
+        JSONResponse: FileUploaded with success message and bool
+    """
     global image_path
     image_path = os.path.join(UPLOAD_DIR, name)
     logger.info(f'image path set to {image_path}')
@@ -40,22 +48,25 @@ async def save_file(b: bytes, name: str):
                            success=True,
                            message=f'Upload of {FILENAME} in {image_path} successful')
     return JSONResponse(content=response_body.model_dump()) 
-    
-
-@app.get("/image")
-async def get_image():
-    if os.path.exists(image_path):
-        return FileResponse(image_path)
-    else:
-        raise HTTPException(status_code=404, detail="Image not found")
 
 @app.post('/pencil_point')
-async def addPoint(x: float, y: float, thickness: int):
+async def addPoint(x: float, y: float, thickness: int) -> JSONResponse:
+    """modifies the image by drawing a circle at the specified point.
+    Uses the cv2.circle algorithm
+
+    Args:
+        x (float): x-coordinate of the point
+        y (float): y-coordinate of the point
+        thickness (int): Thickness of the circle
+
+    Raises:
+        HTTPException: 404 if image is not found
+
+    Returns:
+        JSONResponse: message if successful
+    """
     x = int(x)
     y = int(y)
-    
-    if x is None or y is None:
-        raise HTTPException(status_code=400, detail="Coordinates not provided")
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
@@ -68,10 +79,24 @@ async def addPoint(x: float, y: float, thickness: int):
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully"}    
+    return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/pencil_line')
-async def addLine(start_point: tuple, end_point: tuple, thickness: int):
+async def addLine(start_point: tuple, end_point: tuple, thickness: int) -> JSONResponse:
+    """Modifying the image by drawing a line between the two points. 
+    Uses the cv2.line function
+
+    Args:
+        start_point (tuple): x- and y coordinate of the start point
+        end_point (tuple): x- and y coordinate of the end point
+        thickness (int): thickness of the line
+
+    Raises:
+        HTTPException: 404 if image is not found
+
+    Returns:
+        JSONResponse: message if successful
+    """
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -88,10 +113,23 @@ async def addLine(start_point: tuple, end_point: tuple, thickness: int):
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully"}
+    return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/draw_square')
-async def drawSquare(start_point: tuple, end_point: tuple):
+async def drawSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
+    """Modifies the image by drawing a square between the two points.
+    Uses the cv2.rectangle function.
+
+    Args:
+        start_point (tuple): x- and y coordinate of the start point
+        end_point (tuple): x- and y coordinate of the end point
+
+    Raises:
+        HTTPException: 404 if image is not found
+
+    Returns:
+        JSONResponse: message if successful
+    """
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -108,14 +146,26 @@ async def drawSquare(start_point: tuple, end_point: tuple):
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully"}
+    return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/eraser_click')
-async def erasePoint(x: float, y: float, thickness: int):
+async def erasePoint(x: float, y: float, thickness: int) -> JSONResponse:
+    """modifies the image by erasing a circle at the specified point.
+    Uses the cv2.circle algorithm. Draws a white circle essentially.
+
+    Args:
+        x (float): x-coordinate of the point
+        y (float): y-coordinate of the point
+        thickness (int): Thickness of the circle
+
+    Raises:
+        HTTPException: 404 if image is not found
+
+    Returns:
+        JSONResponse: message if successful
+    """
     x = int(x)
     y = int(y)
-    if x is None or y is None:
-        raise HTTPException(status_code=400, detail="Coordinates not provided")
 
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -129,10 +179,24 @@ async def erasePoint(x: float, y: float, thickness: int):
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully", "x": x, "y": y}
+    return JSONResponse(content={"message": "Image modified successfully", "x": x, "y": y})
 
 @app.post('/eraser_line')
-async def eraseLine(start_point: tuple, end_point: tuple, thickness: int):
+async def eraseLine(start_point: tuple, end_point: tuple, thickness: int) -> JSONResponse:
+    """Modifying the image by erasing a line between the two points. 
+    Uses the cv2.line function. Draws a while line essentially.
+
+    Args:
+        start_point (tuple): x- and y coordinate of the start point
+        end_point (tuple): x- and y coordinate of the end point
+        thickness (int): thickness of the line
+
+    Raises:
+        HTTPException: 404 if image is not found
+
+    Returns:
+        JSONResponse: message if successful
+    """
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -149,10 +213,23 @@ async def eraseLine(start_point: tuple, end_point: tuple, thickness: int):
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully"}
+    return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/eraser_square')
-async def eraseSquare(start_point: tuple, end_point: tuple):
+async def eraseSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
+    """Modifies the image by erasing a square between the two points.
+    Uses the cv2.rectangle function. Draws a white square essentially. 
+
+    Args:
+        start_point (tuple): x- and y coordinate of the start point
+        end_point (tuple): x- and y coordinate of the end point
+
+    Raises:
+        HTTPException: 404 if image is not found
+
+    Returns:
+        JSONResponse: message if successful
+    """
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -169,10 +246,23 @@ async def eraseSquare(start_point: tuple, end_point: tuple):
     # Save the modified image
     cv2.imwrite(image_path, image)
 
-    return {"message": "Image modified successfully"}
+    return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/cut_out')
-async def cutOut(start_point: tuple, end_point: tuple):
+async def cutOut(start_point: tuple, end_point: tuple) -> JSONResponse:
+    """Cuts the image defined by start- and end point
+
+    Args:
+        start_point (tuple): x- and y coordinate of the start point
+        end_point (tuple): x- and y coordinate of the end point
+
+    Raises:
+        HTTPException: 404 if image is not found
+        HTTPEXception: 400 if coordinates are invalid
+
+    Returns:
+        JSONResponse: message if modified successfully
+    """
     global cut_image_path
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
@@ -213,46 +303,59 @@ async def cutOut(start_point: tuple, end_point: tuple):
     # Save the modified image
     cut_image_path = os.path.join(UPLOAD_DIR, 'cut_image.jpg')
     cv2.imwrite(cut_image_path, cut_image)
-    
-    # copyCutImage()
-    
-    return {"message": "Image modified successfully"}
+        
+    return JSONResponse(content={"message": "Image modified successfully"})
 
         
 @app.post('/fillArea')
-async def fillArea(x: float, y: float):
-        x = int(x)
-        y = int(y)
-        if not os.path.exists(image_path):
-            raise HTTPException(status_code=404, detail="Image not found")
+async def fillArea(x: float, y: float) -> JSONResponse:
+    """Creates an image where the area defined by the point is filled with red color.
+    Uses the floodfill algorithm of cv2
 
-        # Read the image
-        image = cv2.imread(image_path)
-        if image is None:
-            raise HTTPException(status_code=404, detail="Failed to load image")
+    Args:
+        x (float): x-coordinate of the point
+        y (float): y-coordinate of the point
 
-        # Flood fill
-        # gets the image size in height and width. 
-        # Channels of the picture are not necessary, hence the slicing
-        h, w = image.shape[:2]
-        # flood fill requires a mask which is two pixels bigger in h and w dimension
-        mask = np.zeros((h+2, w+2), np.uint8)
-        flood_fill_color = (0, 0, 255)  # Fill color (red)
-        seed_point = (x, y)
-        lo_diff = (10, 10, 10)  # Lower brightness/color difference
-        up_diff = (10, 10, 10)  # Upper brightness/color difference
-        
-        cv2.floodFill(image, mask, seed_point, flood_fill_color, lo_diff, up_diff)
+    Raises:
+        HTTPException: 404 if image is not found or not properly loaded
 
-        # Save the modified image
-        _, extension = os.path.splitext(image_path)
-        filled_image_path = os.path.join(UPLOAD_DIR, 'filled_image' + extension)
-        cv2.imwrite(filled_image_path, image)
+    Returns:
+        JSONResponse: success message if successful with image path  
+    """
+    x = int(x)
+    y = int(y)
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
 
-        return JSONResponse(content={"message": "Image modified successfully", "image_path": filled_image_path})
+    # Read the image
+    image = cv2.imread(image_path)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Failed to load image")
+
+    # Flood fill
+    # gets the image size in height and width. 
+    # Channels of the picture are not necessary, hence the slicing
+    h, w = image.shape[:2]
+    # flood fill requires a mask which is two pixels bigger in h and w dimension
+    mask = np.zeros((h+2, w+2), np.uint8)
+    flood_fill_color = (0, 0, 255)  # Fill color (red)
+    seed_point = (x, y)
+    lo_diff = (10, 10, 10)  # Lower brightness/color difference
+    up_diff = (10, 10, 10)  # Upper brightness/color difference
+    
+    cv2.floodFill(image, mask, seed_point, flood_fill_color, lo_diff, up_diff)
+
+    # Save the modified image
+    _, extension = os.path.splitext(image_path)
+    filled_image_path = os.path.join(UPLOAD_DIR, 'filled_image' + extension)
+    cv2.imwrite(filled_image_path, image)
+
+    return JSONResponse(content={"message": "Image modified successfully", "image_path": filled_image_path})
 
 @app.post('/copyCutImage')
-def copyCutImage():
+def copyCutImage() -> None:
+    """If it exists, writes the cutted image to the image path to overwrite the original image with the cutted one
+    """
     if os.path.exists(cut_image_path):
         image = cv2.imread(cut_image_path)
         cv2.imwrite(image_path, image)

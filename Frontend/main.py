@@ -55,6 +55,11 @@ pgm_path = os.path.join(UPLOAD_DIR, complete_pgm)
 app.add_static_files(url_path='/uploaded_files', local_directory='uploaded_files')
         
 def init(fastapi_app: FastAPI) -> None: 
+    """initializes the app and adds the pages to the router
+
+    Args:
+        fastapi_app (FastAPI): The app to initialize
+    """
     @ui.page('/')
     def show():
         router = Router()
@@ -111,12 +116,17 @@ def init(fastapi_app: FastAPI) -> None:
     # mount path is homepage, secret is randomly chosen
     ui.run_with(fastapi_app, storage_secret='secret') 
 
-def compute_resolution():
+def compute_resolution() -> None:
+    """ computes the resolution based on length and amount of pixels 
+        and sets the resolution in the yaml-parameter file  
+    """
     global yaml_parameters
     yaml_parameters.resolution = (preparation_parameters.length/preparation_parameters.pixels).__round__(4)
     
     
 def download_page_layout() -> None:
+    """defines the layout of the download page
+    """
     global ii, image_reload_timer
     ui.label('pgm creation threshold').classes('text-xl cols-span-full').tooltip(tooltip.RESOLUTION)
     pgm_thresh = ui.slider(min=0, max=255, step=1).bind_value(preparation_parameters, 'pgm_threshold').classes('col-span-full').tooltip(tooltip.RESOLUTION)
@@ -143,13 +153,18 @@ def download_page_layout() -> None:
         image_reload_timer.cancel()
         image_reload_timer = ui.timer(interval=0.3, callback=lambda: ii.set_source(f'{image_path}?{time.time()}'))
 
-async def create_pgm():
+async def create_pgm() -> None:
     thresh = preparation_parameters.pgm_threshold
     yaml_string = to_yaml_str(yaml_parameters)
     await mc.convert_to_pgm(thresh, yaml_string)
     ui.notify(f'pgm created with threshold set to {thresh}, check file {pgm_path} before downloading')
 
-async def handle_length(e: events.MouseEventArguments):
+async def handle_length(e: events.MouseEventArguments) -> None:
+    """sets the length of the data structure by measuring the distance between mousedown and mouseup event
+        mousedown sets start point and mouseevent sets endpoint
+    Args:
+        e (events.MouseEventArguments): listener to the mouse events 
+    """
     global start_point, end_point, clicked, preparation_parameters
     color = 'red' 
     if e.type == 'mousedown':
@@ -169,13 +184,22 @@ async def handle_length(e: events.MouseEventArguments):
         ui.notify('start and endpoint not set correctly')
 
 def euclidean_distance(point1, point2):
+    """computes the euclidean distance between two points
+
+    Args:
+        point1 (_type_): start point
+        point2 (_type_): end point
+
+    Returns:
+        _type_: distance between the two points in an arbitrary unit
+    """
     x1, y1 = point1
     x2, y2 = point2
     distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
     return distance
 
 # don't forget the tooltips
-def quality_page_layout():
+def quality_page_layout() -> None:
     ui.timer(interval=5.0, callback=update_quality_parameter)
     
     ui.label('Percentage of the area reachable by the robot, defined through the filled area').classes('text-xl')
@@ -198,7 +222,10 @@ async def update_quality_parameter():
     quality_parameters.filled_area = (quality_parameters.filled_pixels * (yaml_parameters.resolution * yaml_parameters.resolution)).__round__(1)
     quality_parameters.wall_area = (quality_parameters.black_pixels * (yaml_parameters.resolution * yaml_parameters.resolution)).__round__(1)
     
-async def compute_filled_percentage():
+async def compute_filled_percentage() -> None:
+    """computes the percentage of red pixels and binds the values to the quality parameters. 
+    Notifies if errors occur in the backend.
+    """
     global quality_parameters
     try:
         filled_area_response = await qc.computeFilledAreaPercentage()
@@ -222,7 +249,10 @@ async def compute_filled_percentage():
         ui.notify(f'Exception occured')
         
 
-async def compute_wall_percentage():
+async def compute_wall_percentage() -> None:
+    """computes the percentage of black pixels and binds the values to the quality parameters. 
+    Notifies if errors occur in the backend.
+    """
     global quality_parameters
     filled_wall_response = await qc.computePercentageWalls()
     if filled_wall_response.status_code == 200:
@@ -243,14 +273,24 @@ async def compute_wall_percentage():
         ui.notify(f"Error: {filled_wall_response.body}")
 
 
-def process_image_name(e: events.UploadEventArguments):
+def process_image_name(e: events.UploadEventArguments) -> bool:
+    """sets the name to all files if it is set, 
+    or sets the name to "uploaded_file" to yaml, pgm and image name.
+    Accepts only jpg and png files. 
+
+    Args:
+        e (events.UploadEventArguments): The uploaded picture event
+
+    Returns:
+        _type_: True if name is set correctly or False if an error occurs
+    """
     global complete_yaml, complete_pgm, complete_picture, image_path, filled_image_path, cut_image_path
 
     # get the file extension from the uploaded picture and save the file extension 
     _, file_extension = os.path.splitext(e.name)
     # file type check
-    if file_extension not in ('.jpg', '.png', '.pgm'):
-        ui.notify('wrong filetype, please enter only jpg, png or pgm files')
+    if file_extension not in ('.jpg', '.png'):
+        ui.notify('wrong filetype, please enter only jpg or png files')
         return False
     else:
         # if something is typed into textbox, use it for both picture and yaml
@@ -277,7 +317,7 @@ def process_image_name(e: events.UploadEventArguments):
         filled_image_path = os.path.join(UPLOAD_DIR, complete_filled)
         return True
     
-def parameter_page_layout(): 
+def parameter_page_layout() -> None: 
     global yaml_parameters
     if visibility:
         with ui.grid(columns=16).classes('w-full gap-0'):
@@ -304,11 +344,14 @@ def parameter_page_layout():
         no_pic()
         
 async def download_map_files() -> None:
+    """downloads both pgm and yaml file. Notifies in the UI if an error occurs.
+    If parameter-page was never visited or no pgm was created, some downloads will fail. 
+    """
     global yaml_parameters, complete_yaml, complete_picture
     
     yaml_string = to_yaml_str(yaml_parameters)
     ui.notify(yaml_string)
-    response = await mc.download_files(yaml_string)
+    response = await mc.write_yaml(yaml_string)
     
     if response.status_code == 200:
             try:
@@ -326,7 +369,7 @@ async def download_map_files() -> None:
     else:
         ui.notify(f"Error: {response_body}")
 
-def no_pic():
+def no_pic() -> None:
     ui.notify("No picture uploaded, please go to Upload and upload a file")
     
 def pencil() -> None:
@@ -368,11 +411,18 @@ def eraser() -> None:
     else:
         no_pic()    
     
-def showCutImage():
+def showCutImage() -> None:
+    """Sets the source of the interactive image to the path of the cutted image
+    """
     global ii
     ii.set_source(os.path.join(UPLOAD_DIR,'cut_image.jpg'))
 
-async def on_file_upload(e: events.UploadEventArguments):
+async def on_file_upload(e: events.UploadEventArguments) -> None:
+    """Handles the file upload event by setting the name. Notifies if errors occurs
+
+    Args:
+        e (events.UploadEventArguments): Content of the uploaded picture
+    """
     global visibility, yaml_parameters
     
     if process_image_name(e):
@@ -395,7 +445,7 @@ async def on_file_upload(e: events.UploadEventArguments):
             ui.notify(f"Error: {response_body}")
             visibility = False
 
-async def fetch_image():
+async def fetch_image() -> None:
     async with httpx.AsyncClient() as client:
         response = await client.get('http://127.0.0.1:8000/image')
         if response.status_code == 200:
@@ -405,7 +455,12 @@ async def fetch_image():
         else:
             ui.notify("Failed to load image")
 
-async def pencil_line(e: events.MouseEventArguments):
+async def pencil_line(e: events.MouseEventArguments) -> None:
+    """draws a line between two points, defined by mousedown and mouseup event
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """
     global start_point, end_point, clicked
     if e.type == 'mousedown':
         start_point = (e.image_x, e.image_y)
@@ -420,7 +475,12 @@ async def pencil_line(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
 
-async def pencil_point(e: events.MouseEventArguments):
+async def pencil_point(e: events.MouseEventArguments) -> None:
+    """Draws a point at the specified position
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """
     # only listens to mousedown to prevent to many dots from spawning
     if e.type == 'mousedown':
         x = e.image_x
@@ -428,7 +488,12 @@ async def pencil_point(e: events.MouseEventArguments):
         thickness = preparation_parameters.thickness
         await mp.addPoint(x,y, thickness)
 
-async def pencil_square(e: events.MouseEventArguments):
+async def pencil_square(e: events.MouseEventArguments) -> None:
+    """draws a square specified by two points, defined by mousedown and mouseup event
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """    
     global start_point, end_point, clicked
     if e.type == 'mousedown':
         start_point = (e.image_x, e.image_y)
@@ -442,7 +507,12 @@ async def pencil_square(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
 
-async def cut_out(e: events.MouseEventArguments):
+async def cut_out(e: events.MouseEventArguments) -> None:
+    """cuts an area out of the picture, defined by mousedown and mouseup event
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """    
     global start_point, end_point, clicked
     if e.type == 'mousedown':
         start_point = (e.image_x, e.image_y)
@@ -458,7 +528,12 @@ async def cut_out(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
         
-async def fill_area(e: events.MouseEventArguments):
+async def fill_area(e: events.MouseEventArguments) -> None:
+    """with the flood fill algorithm from cv2, fills the area where the point is 
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """
     # only listens to mousedown to prevent to many dots from spawning
     if e.type == 'mousedown':
         x = e.image_x
@@ -466,7 +541,12 @@ async def fill_area(e: events.MouseEventArguments):
         await mp.fillArea(x,y)
 
 # clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
-async def handle_pencil(e: events.MouseEventArguments):
+async def handle_pencil(e: events.MouseEventArguments) -> None:
+    """Orchestration function. Handles methods on pencil page based on chosen preparation type
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """
     if preparation_parameters.preparation_type == 'line':
         await pencil_line(e)
     elif preparation_parameters.preparation_type == 'point':
@@ -480,7 +560,12 @@ async def handle_pencil(e: events.MouseEventArguments):
     else:
         ui.notify(f'no preparation type chosen')
             
-async def handle_eraser(e: events.MouseEventArguments):
+async def handle_eraser(e: events.MouseEventArguments) -> None:
+    """Orchestration function. Handles methods on eraser page based on chosen preparation type
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """
     if preparation_parameters.preparation_type == 'line':
         await erase_line(e)
     elif preparation_parameters.preparation_type == 'point':
@@ -494,7 +579,12 @@ async def handle_eraser(e: events.MouseEventArguments):
     else:
         ui.notify(f'no preparation type chosen')
 
-async def erase_line(e: events.MouseEventArguments):
+async def erase_line(e: events.MouseEventArguments) -> None:
+    """Erases a line specified by two points, defined by mousedown and mouseup event
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """  
     global start_point, end_point, clicked
     if e.type == 'mousedown':
         start_point = (e.image_x, e.image_y)
@@ -509,15 +599,24 @@ async def erase_line(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
       
-async def erase_point(e: events.MouseEventArguments):
-    # only listens to mousedown to prevent to many dots from spawning
+async def erase_point(e: events.MouseEventArguments) -> None:
+    """deletes a point on the mousedown event
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """  
     if e.type == 'mousedown':
         x = e.image_x
         y = e.image_y
         thickness = preparation_parameters.thickness
         await mp.erasePoint(x,y, thickness)
 
-async def erase_square(e: events.MouseEventArguments):
+async def erase_square(e: events.MouseEventArguments) -> None:
+    """Deletes a square specified by two points, defined by mousedown and mouseup event
+
+    Args:
+        e (events.MouseEventArguments): listener for the mouse events
+    """  
     global start_point, end_point, clicked
     if e.type == 'mousedown':
         start_point = (e.image_x, e.image_y)
@@ -531,10 +630,12 @@ async def erase_square(e: events.MouseEventArguments):
     else:
         ui.notify('start and endpoint not set correctly')
 
-# to avoid caching issues, each URL must be unique to allow the browser to reload the image
-# and to avoid flickering images due to heavy switching, the timer needs to be canceld and re-inizialized again 
 # TODO: add some more conditions here to perfectly show cut image
-def reload_image():
+def reload_image() -> None:
+    """to avoid caching issues, each URL must be unique to allow the browser to reload the image
+    and to avoid flickering images due to heavy switching, the timer needs to be canceled and re-inizialized again 
+    A timer is canceled and reinitialized again, switching the source of the interactive image and appends a time stamp
+    """
     global image_reload_timer
     if preparation_parameters.preparation_type != 'fill':
         image_reload_timer.cancel()

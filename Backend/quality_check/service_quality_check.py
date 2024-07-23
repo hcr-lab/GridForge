@@ -31,7 +31,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # get image names and extensions and write them to constants
-def getImageNamesInDir():
+def getImageNamesInDir() -> str:
+    """utility method to set the global variables based on the name and file extension
+
+    Returns:
+        _type_: error messages if something goes wrong
+    """
     global filled, yaml, pic, pgm
     logger.info('method reached')
     try:
@@ -77,7 +82,15 @@ def getImageNamesInDir():
     except Exception as e:
         return f"An error occurred: {e}"    
 
-def filledArea():
+def filledArea() -> tuple:
+    """computes the number of red pixels and the number of all pixels. Returns both as tuple
+
+    Raises:
+        HTTPException: 404 if image is not found or image failed to load
+
+    Returns:
+        tuple: filled pixels as integer, complete number of pixels as integer
+    """
     if filled == None:
         getImageNamesInDir()
     # if filled is still None after calling getImagesInDir,
@@ -118,7 +131,15 @@ def filledArea():
         
         return filled_pixels, raw_image_size
     
-def blackArea():
+def blackArea() -> tuple:
+    """computes the number of black pixels and the number of all pixels. Returns both as tuple
+
+    Raises:
+        HTTPException: 404 if image is not found or image failed to load
+
+    Returns:
+        tuple: black pixels as integer, complete number of pixels as integer
+    """
     if pgm == None:
         getImageNamesInDir()
 

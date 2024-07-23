@@ -23,7 +23,15 @@ logger = logging.getLogger(__name__)
 
 # since the Yaml_parameter class is not in the correct format, 
 # it needs to be processed into the correct format
-def process_yaml_string(yaml_string: str):
+def process_yaml_string(yaml_string: str) -> str:
+    """Builds the content of the yaml file based on the input received from the frontend
+
+    Args:
+        yaml_string (str): The string containing the parameter data from the frontend
+
+    Returns:
+        _type_: A string representing the parameters in a format which is ready to write it into the yaml file
+    """
     global file_name, yaml_file_path, data, image_path
 
     lines = yaml_string.split('\n')
@@ -60,7 +68,12 @@ def process_yaml_string(yaml_string: str):
 
 
     
-def setImagePath(basename):
+def setImagePath(basename: str) -> None:
+    """Sets the image path based on the basename
+
+    Args:
+        basename (str): _description_
+    """
     global image_path
     for ext in ['.jpg', '.png']:
         name = "".join([basename, ext])
@@ -69,28 +82,39 @@ def setImagePath(basename):
             logger.info(f'image path set to {path}')
             image_path = path
             
-def convertWithoutNegate(thresh):
-        input_file = data.get('image')
-        base_name, _ = os.path.splitext(data.get('image'))
-        output_file = base_name + '.pgm'
-        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) 
-        logger.info(f'Image read from imread: {img is not None}')
+def convertWithoutNegate(thresh) -> None:
+    """converts the uploaded jpg or png picture into a pgm picture. Used if negate is false
+
+    Args:
+        thresh (_type_): The threshold used by cv2.threshold function. 
+        Ranges from 0 to 255. The higher, the more pixels are converted to black pixels
         
-        if img is None:
-            logger.error(f"Failed to load image {input_file}")
-            return
-        
-        # Save the image in PGM format
-        output_path = os.path.join(UPLOAD_DIR, output_file)
-        logger.info(f'Attempting to write image to {output_path}')
-        
-        # Apply binary threshold
-        _, binary_img = cv2.threshold(img, thresh=thresh, maxval=255, type=cv2.THRESH_BINARY)
+    Returns:
+        bool: True if creation was successful, False otherwise 
+    """
+    input_file = data.get('image')
+    base_name, _ = os.path.splitext(data.get('image'))
+    output_file = base_name + '.pgm'
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) 
+    logger.info(f'Image read from imread: {img is not None}')
     
-        # TODO: Check if pgm needs to be processed wrt mode and negate or if this happens directly in ros!
-        success = cv2.imwrite(output_path, binary_img)
-        
-        if success:
-            logger.info(f'Successfully wrote image to {output_path}')
-        else:
-            logger.error(f'Failed to write image to {output_path}')
+    if img is None:
+        logger.error(f"Failed to load image {input_file}")
+        return
+    
+    # Save the image in PGM format
+    output_path = os.path.join(UPLOAD_DIR, output_file)
+    logger.info(f'Attempting to write image to {output_path}')
+    
+    # Apply binary threshold
+    _, binary_img = cv2.threshold(img, thresh=thresh, maxval=255, type=cv2.THRESH_BINARY)
+
+    # TODO: Check if pgm needs to be processed wrt mode and negate or if this happens directly in ros!
+    success = cv2.imwrite(output_path, binary_img)
+    
+    if success:
+        logger.info(f'Successfully wrote image to {output_path}')
+        return True
+    else:
+        logger.error(f'Failed to write image to {output_path}')
+        return False
