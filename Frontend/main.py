@@ -146,7 +146,6 @@ def init(fastapi_app: FastAPI) -> None:
                         ui.label('Here, different quality metrics are displayed. Currently, only the filled area and the area of obstacles are displayed.')
                         ui.label('If Fill or create pgm wasn\'t called yet, the respective value is 0.')
                         with ui.stepper_navigation():
-                            ui.button('Next', on_click=stepper.next)
                             ui.button('Back', on_click=stepper.previous).props('flat')                                
             
         # this places the content which should be displayed
