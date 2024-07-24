@@ -3,6 +3,7 @@
 ## Introduction
 
 GridForge is a tool to change site or floor plans and convert them to 2D occupancy grid maps. The output is a yaml-file and a pgm-file which are directly usable for navigation tasks for mobile robots. It was created by me and is the topic of my master thesis. If you use GridForge, please cite me, a citation will follow once the thesis is published. 
+
 GridForge is based upon Nicegui, a python-based frontend framework from Zauberzeug. Credits to them for their nice work! 
 
 ## How to start
@@ -29,9 +30,9 @@ A small tutorial is implemented. Reach it by clicking on the Tutorial-button on 
 
 ## Next steps
 
-API implementation
-adding tests 
-UI improvements like zoom and multi language support
-Improved algorithms for automated image processing 
-Connection to robots to see their position on the map
-... 
+* API implementation
+* adding tests 
+* UI improvements like zoom and multi language support
+* Improved algorithms for automated image processing 
+* Connection to robots to see their position on the map
+* ... 
