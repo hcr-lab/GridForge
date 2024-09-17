@@ -4,7 +4,8 @@ import os
 
 from Backend.map_preparation.FileUploaded import FileUploaded
 from Backend.map_creation.service_map_creation import process_yaml_string, convertWithoutNegate
-from Backend.map_creation.service_map_creation import logger, image_path, UPLOAD_DIR, file_name, yaml_file_path, data
+from Backend.map_creation.service_map_creation import logger
+import Backend.global_variables as globals
 
 app = FastAPI()
 
@@ -18,22 +19,22 @@ async def write_yaml(yaml_string: str) -> JSONResponse:
     Returns:
         JSONResponse: FileUploaded as body with name, path, success bool and message
     """
-    global yaml_file_path
+    # global yaml_file_path
     
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    os.makedirs(globals.UPLOAD_DIR, exist_ok=True)
     # logging works this way
     processed_string = process_yaml_string(yaml_string)
     logger.info(f"processed yaml string is {processed_string}")    
-    logger.info(f"file path is {yaml_file_path}")    
+    logger.info(f"file path is {globals.yaml_file_path}")    
 
     # create the yaml file in the uploaded_files-directory
-    with open(yaml_file_path, "w") as yaml_file:
+    with open(globals.yaml_file_path, "w") as yaml_file:
         yaml_file.write(processed_string)
     
-    response_body = FileUploaded(filename=file_name,
-                           location=yaml_file_path,
+    response_body = FileUploaded(filename=globals.file_name,
+                           location=globals.yaml_file_path,
                            success=True,
-                           message=f'Upload of {file_name} in {yaml_file_path} successful')
+                           message=f'Upload of {globals.file_name} in {globals.yaml_file_path} successful')
     return JSONResponse(content=response_body.model_dump()) 
 
 @app.post("/convertToPgm")
@@ -52,7 +53,7 @@ async def convert_to_pgm(thresh: int, yaml_string: str) -> JSONResponse:
     process_yaml_string(yaml_string)
 
     logger.info(f'threshold uses: {thresh}')
-    negate = int(data.get('negate'))
+    negate = int(globals.data.get('negate'))
     if negate == 0:
         if convertWithoutNegate(thresh):
             return JSONResponse(content={"message": "PGM created successful"})

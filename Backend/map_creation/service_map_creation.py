@@ -1,12 +1,7 @@
 import cv2
 import os
 import logging
-
-UPLOAD_DIR = "uploaded_files"
-file_name = "uploaded_file.yaml"
-yaml_file_path = os.path.join(UPLOAD_DIR, file_name)
-data = {}
-image_path = os.path.join(UPLOAD_DIR, 'uploaded_file.jpg')
+import Backend.global_variables as globals
 
 # Set up logging configuration
 logging.basicConfig(
@@ -32,7 +27,6 @@ def process_yaml_string(yaml_string: str) -> str:
     Returns:
         _type_: A string representing the parameters in a format which is ready to write it into the yaml file
     """
-    global file_name, yaml_file_path, data, image_path
 
     lines = yaml_string.split('\n')
     
@@ -40,29 +34,31 @@ def process_yaml_string(yaml_string: str) -> str:
     for line in lines:
         if line.strip():  # Skip any empty lines
             key, value = line.split(': ', 1)
-            data[key] = value
+            globals.data[key] = value
     
     # change image name to yaml file 
-    base_name, _ = os.path.splitext(data.get('image'))
-    yaml_file = base_name + '.yaml'
-    yaml_file_path = os.path.join(UPLOAD_DIR, yaml_file)
-    logger.info(f'name of yaml file set to {file_name}')
+    base_name, _ = os.path.splitext(globals.data.get('image'))
+    logger.info(f'base name set to {base_name}')
+
+    globals.file_name = base_name + '.yaml'
+    globals.yaml_file_path = os.path.join(globals.UPLOAD_DIR, globals.file_name)
+    logger.info(f'name of yaml file set to {globals.yaml_file_path}')
  
     setImagePath(base_name)
    
     # Modify the values as needed
-    if 'negate' in data:
-        data['negate'] = '0' if data['negate'].lower() == 'false' else '1'
+    if 'negate' in globals.data:
+        globals.data['negate'] = '0' if globals.data['negate'].lower() == 'false' else '1'
     
     # Create the origin list
-    origin = [data.pop('origin_x', '0.0'), data.pop('origin_y', '0.0'), data.pop('origin_yaw', '0.0')]
-    data['origin'] = f"[{', '.join(origin)}]"
+    origin = [globals.data.pop('origin_x', '0.0'), globals.data.pop('origin_y', '0.0'), globals.data.pop('origin_yaw', '0.0')]
+    globals.data['origin'] = f"[{', '.join(origin)}]"
     
     # Construct the output string
     output_lines = []
     for key in ['free_thresh', 'image', 'mode', 'negate', 'occupied_thresh', 'origin', 'resolution']:
-        if key in data:
-            output_lines.append(f"{key}: {data[key]}")
+        if key in globals.data:
+            output_lines.append(f"{key}: {globals.data[key]}")
     
     return '\n'.join(output_lines)
 
@@ -77,7 +73,7 @@ def setImagePath(basename: str) -> None:
     global image_path
     for ext in ['.jpg', '.png']:
         name = "".join([basename, ext])
-        path = os.path.join(UPLOAD_DIR, name)
+        path = os.path.join(globals.UPLOAD_DIR, name)
         if os.path.isfile(path):
             logger.info(f'image path set to {path}')
             image_path = path
@@ -92,8 +88,8 @@ def convertWithoutNegate(thresh) -> None:
     Returns:
         bool: True if creation was successful, False otherwise 
     """
-    input_file = data.get('image')
-    base_name, _ = os.path.splitext(data.get('image'))
+    input_file = globals.data.get('image')
+    base_name, _ = os.path.splitext(globals.data.get('image'))
     output_file = base_name + '.pgm'
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE) 
     logger.info(f'Image read from imread: {img is not None}')
@@ -103,7 +99,7 @@ def convertWithoutNegate(thresh) -> None:
         return
     
     # Save the image in PGM format
-    output_path = os.path.join(UPLOAD_DIR, output_file)
+    output_path = os.path.join(globals.UPLOAD_DIR, output_file)
     logger.info(f'Attempting to write image to {output_path}')
     
     # Apply binary threshold
