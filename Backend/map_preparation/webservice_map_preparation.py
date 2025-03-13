@@ -1,11 +1,11 @@
 import os
 import shutil
-from fastapi import FastAPI, HTTPException
+from fastapi import HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 import cv2
 import numpy as np
 
-from Backend.map_preparation.FileUploaded import FileUploaded
+from Backend.map_preparation.DataModels import FileUploaded, LineRequest, PointRequest
 from Backend.map_preparation.service_map_preparation import cut_image_path, image_path, logger, UPLOAD_DIR, FILENAME
 from Backend.global_variables import app
 
@@ -14,50 +14,54 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
 @app.post('/save')
-async def save_file(b: bytes, name: str) -> JSONResponse:
+async def save_file(file: UploadFile = File(...)) -> JSONResponse:
     """sets the image path and saves the image to uploaded_files
 
     Args:
-        b (bytes): bytes of the uploaded image
-        name (str): name of the uploaded image
+        UploadFile: The file to be uploaded
 
     Returns:
         JSONResponse: FileUploaded with success message and bool
     """
     global image_path
-    image_path = os.path.join(UPLOAD_DIR, name)
-    logger.info(f'image path set to {image_path}')
+    try:
+        # read the bytes of the file 
+        b = await file.read()
+          
+        image_path = os.path.join(UPLOAD_DIR, file.filename)
+        logger.info(f'image path set to {image_path}')
 
-    # Iterate over the files and directories in the specified directory
-    for filename in os.listdir(UPLOAD_DIR):
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)  # Remove the directory and all its contents
-        except Exception as e:
-            return JSONResponse(content=FileUploaded(success=False,
-                                   message=f'Failed to delete {file_path}. Reason: {e}'))
-            
-    with open(image_path, "wb") as buffer:
-        buffer.write(b)
-
-    response_body = FileUploaded(filename=FILENAME,
-                           location=image_path,
-                           success=True,
-                           message=f'Upload of {FILENAME} in {image_path} successful')
-    return JSONResponse(content=response_body.model_dump()) 
+        # Iterate over the files and directories in the specified directory
+        for filename in os.listdir(UPLOAD_DIR):
+            file_path = os.path.join(UPLOAD_DIR, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)  # Remove the directory and all its contents
+            except Exception as e:
+                return JSONResponse(content=FileUploaded(success=False,
+                                    message=f'Failed to delete {file_path}. Reason: {e}'))
+        
+        with open(image_path, "wb") as buffer:
+            buffer.write(b)
+        
+        response_body = FileUploaded(filename=FILENAME,
+                            location=image_path,
+                            success=True,
+                            message=f'Upload of {FILENAME} in {image_path} successful')
+        return JSONResponse(content=response_body.model_dump()) 
+    except:
+        return JSONResponse(content=FileUploaded(success=False,
+                            message=f'Failed to save {FILENAME} in {image_path}'))
 
 @app.post('/pencil_point')
-async def addPoint(x: float, y: float, thickness: int) -> JSONResponse:
+async def addPoint(pointRequest: PointRequest) -> JSONResponse:
     """modifies the image by drawing a circle at the specified point.
     Uses the cv2.circle algorithm
 
     Args:
-        x (float): x-coordinate of the point
-        y (float): y-coordinate of the point
-        thickness (int): Thickness of the circle
+        pointRequest (PointRequest): x- and y-coordinate of the point and thickness
 
     Raises:
         HTTPException: 404 if image is not found
@@ -65,8 +69,10 @@ async def addPoint(x: float, y: float, thickness: int) -> JSONResponse:
     Returns:
         JSONResponse: message if successful
     """
-    x = int(x)
-    y = int(y)
+    x = int(pointRequest.x)
+    y = int(pointRequest.y)
+    thickness = pointRequest.thickness if pointRequest.thickness is not None else 3  # Default thickness
+    
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
@@ -82,14 +88,12 @@ async def addPoint(x: float, y: float, thickness: int) -> JSONResponse:
     return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/pencil_line')
-async def addLine(start_point: tuple, end_point: tuple, thickness: int) -> JSONResponse:
+async def addLine(lineRequest: LineRequest) -> JSONResponse:
     """Modifying the image by drawing a line between the two points. 
     Uses the cv2.line function
 
     Args:
-        start_point (tuple): x- and y coordinate of the start point
-        end_point (tuple): x- and y coordinate of the end point
-        thickness (int): thickness of the line
+        lineRequest (LineRequest): start- and end point of the line and thickness
 
     Raises:
         HTTPException: 404 if image is not found
@@ -97,6 +101,10 @@ async def addLine(start_point: tuple, end_point: tuple, thickness: int) -> JSONR
     Returns:
         JSONResponse: message if successful
     """
+    start_point = lineRequest.start_point
+    end_point = lineRequest.end_point
+    thickness = lineRequest.thickness if lineRequest.thickness is not None else 3  # Default thickness
+    
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -116,13 +124,12 @@ async def addLine(start_point: tuple, end_point: tuple, thickness: int) -> JSONR
     return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/draw_square')
-async def drawSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
+async def drawSquare(lineRequest: LineRequest) -> JSONResponse:
     """Modifies the image by drawing a square between the two points.
     Uses the cv2.rectangle function.
 
     Args:
-        start_point (tuple): x- and y coordinate of the start point
-        end_point (tuple): x- and y coordinate of the end point
+        lineRequest (LineRequest): start- and end point of the line 
 
     Raises:
         HTTPException: 404 if image is not found
@@ -130,6 +137,9 @@ async def drawSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
     Returns:
         JSONResponse: message if successful
     """
+    start_point = lineRequest.start_point
+    end_point = lineRequest.end_point
+    
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -149,23 +159,22 @@ async def drawSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
     return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/eraser_click')
-async def erasePoint(x: float, y: float, thickness: int) -> JSONResponse:
+async def erasePoint(pointRequest: PointRequest) -> JSONResponse:
     """modifies the image by erasing a circle at the specified point.
     Uses the cv2.circle algorithm. Draws a white circle essentially.
 
     Args:
-        x (float): x-coordinate of the point
-        y (float): y-coordinate of the point
-        thickness (int): Thickness of the circle
-
+        pointRequest (PointRequest): x- and y-coordinate of the point and thickness
+    
     Raises:
         HTTPException: 404 if image is not found
 
     Returns:
         JSONResponse: message if successful
     """
-    x = int(x)
-    y = int(y)
+    x = int(pointRequest.x)
+    y = int(pointRequest.y)
+    thickness = pointRequest.thickness if pointRequest.thickness is not None else 3  # Default thickness
 
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -182,14 +191,12 @@ async def erasePoint(x: float, y: float, thickness: int) -> JSONResponse:
     return JSONResponse(content={"message": "Image modified successfully", "x": x, "y": y})
 
 @app.post('/eraser_line')
-async def eraseLine(start_point: tuple, end_point: tuple, thickness: int) -> JSONResponse:
+async def eraseLine(lineRequest: LineRequest) -> JSONResponse:
     """Modifying the image by erasing a line between the two points. 
     Uses the cv2.line function. Draws a while line essentially.
 
     Args:
-        start_point (tuple): x- and y coordinate of the start point
-        end_point (tuple): x- and y coordinate of the end point
-        thickness (int): thickness of the line
+        lineRequest (LineRequest): start- and end point of the line and thickness
 
     Raises:
         HTTPException: 404 if image is not found
@@ -197,6 +204,10 @@ async def eraseLine(start_point: tuple, end_point: tuple, thickness: int) -> JSO
     Returns:
         JSONResponse: message if successful
     """
+    start_point = lineRequest.start_point
+    end_point = lineRequest.end_point
+    thickness = lineRequest.thickness if lineRequest.thickness is not None else 3  # Default thickness
+ 
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -216,13 +227,12 @@ async def eraseLine(start_point: tuple, end_point: tuple, thickness: int) -> JSO
     return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/eraser_square')
-async def eraseSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
+async def eraseSquare(lineRequest: LineRequest) -> JSONResponse:
     """Modifies the image by erasing a square between the two points.
     Uses the cv2.rectangle function. Draws a white square essentially. 
 
     Args:
-        start_point (tuple): x- and y coordinate of the start point
-        end_point (tuple): x- and y coordinate of the end point
+        lineRequest (LineRequest): start- and end point of the line  
 
     Raises:
         HTTPException: 404 if image is not found
@@ -230,6 +240,9 @@ async def eraseSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
     Returns:
         JSONResponse: message if successful
     """
+    start_point = lineRequest.start_point
+    end_point = lineRequest.end_point
+    
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
@@ -249,12 +262,11 @@ async def eraseSquare(start_point: tuple, end_point: tuple) -> JSONResponse:
     return JSONResponse(content={"message": "Image modified successfully"})
 
 @app.post('/cut_out')
-async def cutOut(start_point: tuple, end_point: tuple) -> JSONResponse:
+async def cutOut(lineRequest: LineRequest) -> JSONResponse:
     """Cuts the image defined by start- and end point
 
     Args:
-        start_point (tuple): x- and y coordinate of the start point
-        end_point (tuple): x- and y coordinate of the end point
+        lineRequest (LineRequest): start- and end point of the line  
 
     Raises:
         HTTPException: 404 if image is not found
@@ -263,6 +275,9 @@ async def cutOut(start_point: tuple, end_point: tuple) -> JSONResponse:
     Returns:
         JSONResponse: message if modified successfully
     """
+    start_point = lineRequest.start_point
+    end_point = lineRequest.end_point
+    
     global cut_image_path
     logger.info(f'startpoint is {start_point}, endpoint is {end_point}')
     if not os.path.exists(image_path):
@@ -307,14 +322,13 @@ async def cutOut(start_point: tuple, end_point: tuple) -> JSONResponse:
     return JSONResponse(content={"message": "Image modified successfully"})
 
         
-@app.post('/fillArea')
-async def fillArea(x: float, y: float) -> JSONResponse:
+@app.post('/fill_area')
+async def fillArea(pointRequest: PointRequest) -> JSONResponse:
     """Creates an image where the area defined by the point is filled with red color.
     Uses the floodfill algorithm of cv2
 
     Args:
-        x (float): x-coordinate of the point
-        y (float): y-coordinate of the point
+        pointRequest (PointRequest): x- and y-coordinate of the point
 
     Raises:
         HTTPException: 404 if image is not found or not properly loaded
@@ -322,8 +336,10 @@ async def fillArea(x: float, y: float) -> JSONResponse:
     Returns:
         JSONResponse: success message if successful with image path  
     """
-    x = int(x)
-    y = int(y)
+    
+    x = int(pointRequest.x)
+    y = int(pointRequest.y)
+
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
