@@ -6,7 +6,7 @@ import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
 from Frontend.router import Router
-import Backend.map_creation.webservice_map_creation as mc
+# import Backend.map_creation.webservice_map_creation as mc
 import Backend.quality_check.webservice_quality_check as qc
 import Backend.map_preparation.webservice_map_preparation as mp
 import json
@@ -111,43 +111,44 @@ def init(fastapi_app: FastAPI) -> None:
             ui.button('Parameter', on_click=lambda: router.open(show_parameter)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32').tooltip(tooltip.QUALITY_BUTTON)
-            # ui.button('Tutorial', on_click=lambda: left_drawer.toggle()).props('flat color=white')
             
-            # with ui.left_drawer().classes('bg-blue-100') as left_drawer:
-            #     left_drawer.hide()
-            #     ui.label('Tutorial')
-            #     with ui.stepper().props('vertical').classes('w-full') as stepper:
-            #         with ui.step('Upload'):
-            #             ui.label('Upload a jpg or png picture and maybe give it a name')
-            #             with ui.stepper_navigation():
-            #                 ui.button('Next', on_click=stepper.next)
-            #         with ui.step('Pencil and Eraser'):
-            #             ui.label('Alter the picture by drawing or erasing stuff. Possible options are point, line and square. Thickness ranges from 1 to 20 and defines the pixel width of line and point.')
-            #             ui.label('Fill will create a new picture and show it. The red area defines the drivable area of the robot.')
-            #             ui.label('Cut allows to decrease the size of the image. Show the cutted image with the button and if it is correct, save it with click to the other button.')
-            #             with ui.stepper_navigation():
-            #                 ui.button('Next', on_click=stepper.next)
-            #                 ui.button('Back', on_click=stepper.previous).props('flat')
-            #         with ui.step('Parameter'):
-            #             ui.label('Set parameters for the yaml-file representation. Resolution is set in the Download-page.')
-            #             ui.label('Values are directly bound to a data structure and thus automatically saved')
-            #             ui.label('You need to visit this page at least once.')
-            #             with ui.stepper_navigation():
-            #                 ui.button('Next', on_click=stepper.next)
-            #                 ui.button('Back', on_click=stepper.previous).props('flat')
-            #         with ui.step('Download'):
-            #             ui.label('Here, you can create the pgm-file based on your processed image.')
-            #             ui.label(' If it isn\'t directly grayscale, you can change the threshold (range 0 to 255). The higher the value, the more colored pixels are recognized as obstacles.')
-            #             ui.label('You also need to compute the resolution by drawing a line on the map and enter the measured length in meters into the textbox. If the computed resolution is sensible, confirm the values and download both pgm and yaml-file by clicking the button.')
-            #             with ui.stepper_navigation():
-            #                 ui.button('Next', on_click=stepper.next)
-            #                 ui.button('Back', on_click=stepper.previous).props('flat')     
-            #         with ui.step('Quality'):
-            #             ui.label('Here, different quality metrics are displayed. Currently, only the filled area and the area of obstacles are displayed.')
-            #             ui.label('If Fill or create pgm wasn\'t called yet, the respective value is 0.')
-            #             with ui.stepper_navigation():
-            #                 ui.button('Back', on_click=stepper.previous).props('flat')                                
+            ui.button('Tutorial', on_click=lambda: left_drawer.toggle()).props('flat color=white')
             
+        with ui.left_drawer().classes('bg-blue-100') as left_drawer:
+            left_drawer.hide()
+            ui.label('Tutorial')
+            with ui.stepper().props('vertical').classes('w-full') as stepper:
+                with ui.step('Upload'):
+                    ui.label('Upload a jpg or png picture and maybe give it a name')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                with ui.step('Pencil and Eraser'):
+                    ui.label('Alter the picture by drawing or erasing stuff. Possible options are point, line and square. Thickness ranges from 1 to 20 and defines the pixel width of line and point.')
+                    ui.label('Fill will create a new picture and show it. The red area defines the drivable area of the robot.')
+                    ui.label('Cut allows to decrease the size of the image. Show the cutted image with the button and if it is correct, save it with click to the other button.')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                        ui.button('Back', on_click=stepper.previous).props('flat')
+                with ui.step('Parameter'):
+                    ui.label('Set parameters for the yaml-file representation. Resolution is set in the Download-page.')
+                    ui.label('Values are directly bound to a data structure and thus automatically saved')
+                    ui.label('You need to visit this page at least once.')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                        ui.button('Back', on_click=stepper.previous).props('flat')
+                with ui.step('Download'):
+                    ui.label('Here, you can create the pgm-file based on your processed image.')
+                    ui.label(' If it isn\'t directly grayscale, you can change the threshold (range 0 to 255). The higher the value, the more colored pixels are recognized as obstacles.')
+                    ui.label('You also need to compute the resolution by drawing a line on the map and enter the measured length in meters into the textbox. If the computed resolution is sensible, confirm the values and download both pgm and yaml-file by clicking the button.')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                        ui.button('Back', on_click=stepper.previous).props('flat')     
+                with ui.step('Quality'):
+                    ui.label('Here, different quality metrics are displayed. Currently, only the filled area and the area of obstacles are displayed.')
+                    ui.label('If Fill or create pgm wasn\'t called yet, the respective value is 0.')
+                    with ui.stepper_navigation():
+                        ui.button('Back', on_click=stepper.previous).props('flat')                                
+        
         # this places the content which should be displayed
         router.frame().classes('w-full p-4 bg-gray-100')
         
@@ -196,9 +197,12 @@ def download_page_layout() -> None:
 async def create_pgm() -> None:
     thresh = preparation_parameters.pgm_threshold
     yaml_string = to_yaml_str(yaml_parameters)
-    await mc.convert_to_pgm(thresh, yaml_string)
-    ui.notify(f'pgm created with threshold set to {thresh}, check file {pgm_path} before downloading')
-
+    async with httpx.AsyncClient() as client:
+        response = await client.post('http://localhost:8000/convertToPgm', params={'thresh': thresh, 'yaml_string': yaml_string})
+    # await mc.convert_to_pgm(thresh, yaml_string)
+        ui.notify(f'pgm created with threshold set to {thresh}, check file {pgm_path} before downloading')
+        return response
+    
 async def handle_length(e: events.MouseEventArguments) -> None:
     """sets the length of the data structure by measuring the distance between mousedown and mouseup event
         mousedown sets start point and mouseevent sets endpoint
@@ -392,23 +396,23 @@ async def download_map_files() -> None:
     
     yaml_string = to_yaml_str(yaml_parameters)
     ui.notify(yaml_string)
-    response = await mc.write_yaml(yaml_string)
+    # response = await mc.write_yaml(yaml_string)
     
-    if response.status_code == 200:
-            try:
-                response_body = response.body  # Get the response body as a string
-                response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
-                if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
-                    ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
-                    print(response_body_dict)  # Print the dictionary of the JSON response
-                    ui.download(f'{UPLOAD_DIR}/{complete_pgm}')
-                    ui.download(f'{UPLOAD_DIR}/{complete_yaml}')
-                else:
-                    ui.notify("Error: Response is not a dictionary")
-            except json.JSONDecodeError:
-                ui.notify("Error: Failed to decode JSON response")
-    else:
-        ui.notify(f"Error: {response_body}")
+    # if response.status_code == 200:
+    #         try:
+    #             response_body = response.body  # Get the response body as a string
+    #             response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
+    #             if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
+    #                 ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
+    #                 print(response_body_dict)  # Print the dictionary of the JSON response
+    #                 ui.download(f'{UPLOAD_DIR}/{complete_pgm}')
+    #                 ui.download(f'{UPLOAD_DIR}/{complete_yaml}')
+    #             else:
+    #                 ui.notify("Error: Response is not a dictionary")
+    #         except json.JSONDecodeError:
+    #             ui.notify("Error: Failed to decode JSON response")
+    # else:
+    #     ui.notify(f"Error: {response_body}")
 
 def no_pic() -> None:
     ui.notify("No picture uploaded, please go to Upload and upload a file")

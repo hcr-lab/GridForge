@@ -1,15 +1,15 @@
 import os
 import shutil
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 import cv2
 import numpy as np
 
 from Backend.map_preparation.FileUploaded import FileUploaded
 from Backend.map_preparation.service_map_preparation import cut_image_path, image_path, logger, UPLOAD_DIR, FILENAME
+from Backend.global_variables import app
 
-app = FastAPI()
-
+# Constants
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 

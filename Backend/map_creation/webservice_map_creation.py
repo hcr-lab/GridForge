@@ -1,13 +1,11 @@
 from fastapi.responses import JSONResponse
-from fastapi import FastAPI
 import os
 
 from Backend.map_preparation.FileUploaded import FileUploaded
 from Backend.map_creation.service_map_creation import process_yaml_string, convertWithoutNegate
 from Backend.map_creation.service_map_creation import logger
 import Backend.global_variables as globals
-
-app = FastAPI()
+from Backend.global_variables import app
 
 @app.get("/download_files", response_class=JSONResponse)
 async def write_yaml(yaml_string: str) -> JSONResponse:

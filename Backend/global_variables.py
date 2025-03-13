@@ -1,4 +1,7 @@
 import os
+from fastapi import FastAPI
+
+app = FastAPI()
 
 UPLOAD_DIR = "uploaded_files"
 file_name = "uploaded_file.yaml"
