@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from Backend.quality_check.service_quality_check import filledArea, blackArea
-
-app = FastAPI()
+from Backend.global_variables import app
 
 @app.get("/filledAreaPercentage")
 async def computeFilledAreaPercentage():

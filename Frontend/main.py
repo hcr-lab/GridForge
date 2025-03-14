@@ -6,9 +6,6 @@ import httpx
 from nicegui import app, events, ui
 from fastapi import FastAPI
 from Frontend.router import Router
-import Backend.map_creation.webservice_map_creation as mc
-import Backend.quality_check.webservice_quality_check as qc
-import Backend.map_preparation.webservice_map_preparation as mp
 import json
 import os
 from Frontend.preparation_parameters import Preparation_parameters
@@ -66,7 +63,7 @@ def init(fastapi_app: FastAPI) -> None:
 
         router = Router()
 
-        # Hochladen des Bilds ermöglichen
+        # Upload the picture
         @router.add('/')
         def show_upload():
             global picture_name
@@ -75,13 +72,13 @@ def init(fastapi_app: FastAPI) -> None:
             ui.input('Enter name of Picture', placeholder=picture_name).bind_value_to(yaml_parameters, 'image').tooltip(tooltip.UPLOAD_NAME)
             ui.upload(on_upload=on_file_upload, label="Upload a picture").tooltip(tooltip.UPLOAD_IF)
             
-        # Farbpalette zeigen, Hinzufügen
+        # Add elements to picture
         @router.add('/pencil') 
         def show_pencil():
             ui.label('Pencil').classes('text-2xl')
             pencil()
             
-        # Löschen von Inhalten aus Bild 
+        # erase elements out of picture 
         @router.add('/eraser')
         def show_eraser():
             ui.label('Eraser').classes('text-2xl')
@@ -111,43 +108,45 @@ def init(fastapi_app: FastAPI) -> None:
             ui.button('Parameter', on_click=lambda: router.open(show_parameter)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Download', on_click=lambda: router.open(show_download)).classes('w-32').tooltip(tooltip.DOWNLOAD_BUTTON)
             ui.button('Quality', on_click=lambda: router.open(show_quality)).classes('w-32').tooltip(tooltip.QUALITY_BUTTON)
+            
             ui.button('Tutorial', on_click=lambda: left_drawer.toggle()).props('flat color=white')
             
-            with ui.left_drawer().classes('bg-blue-100') as left_drawer:
-                left_drawer.hide()
-                ui.label('Tutorial')
-                with ui.stepper().props('vertical').classes('w-full') as stepper:
-                    with ui.step('Upload'):
-                        ui.label('Upload a jpg or png picture and maybe give it a name')
-                        with ui.stepper_navigation():
-                            ui.button('Next', on_click=stepper.next)
-                    with ui.step('Pencil and Eraser'):
-                        ui.label('Alter the picture by drawing or erasing stuff. Possible options are point, line and square. Thickness ranges from 1 to 20 and defines the pixel width of line and point.')
-                        ui.label('Fill will create a new picture and show it. The red area defines the drivable area of the robot.')
-                        ui.label('Cut allows to decrease the size of the image. Show the cutted image with the button and if it is correct, save it with click to the other button.')
-                        with ui.stepper_navigation():
-                            ui.button('Next', on_click=stepper.next)
-                            ui.button('Back', on_click=stepper.previous).props('flat')
-                    with ui.step('Parameter'):
-                        ui.label('Set parameters for the yaml-file representation. Resolution is set in the Download-page.')
-                        ui.label('Values are directly bound to a data structure and thus automatically saved')
-                        ui.label('You need to visit this page at least once.')
-                        with ui.stepper_navigation():
-                            ui.button('Next', on_click=stepper.next)
-                            ui.button('Back', on_click=stepper.previous).props('flat')
-                    with ui.step('Download'):
-                        ui.label('Here, you can create the pgm-file based on your processed image.')
-                        ui.label(' If it isn\'t directly grayscale, you can change the threshold (range 0 to 255). The higher the value, the more colored pixels are recognized as obstacles.')
-                        ui.label('You also need to compute the resolution by drawing a line on the map and enter the measured length in meters into the textbox. If the computed resolution is sensible, confirm the values and download both pgm and yaml-file by clicking the button.')
-                        with ui.stepper_navigation():
-                            ui.button('Next', on_click=stepper.next)
-                            ui.button('Back', on_click=stepper.previous).props('flat')     
-                    with ui.step('Quality'):
-                        ui.label('Here, different quality metrics are displayed. Currently, only the filled area and the area of obstacles are displayed.')
-                        ui.label('If Fill or create pgm wasn\'t called yet, the respective value is 0.')
-                        with ui.stepper_navigation():
-                            ui.button('Back', on_click=stepper.previous).props('flat')                                
-            
+        # tutorial drawer
+        with ui.left_drawer().classes('bg-blue-100') as left_drawer:
+            left_drawer.hide()
+            ui.label('Tutorial')
+            with ui.stepper().props('vertical').classes('w-full') as stepper:
+                with ui.step('Upload'):
+                    ui.label('Upload a jpg or png picture and maybe give it a name')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                with ui.step('Pencil and Eraser'):
+                    ui.label('Alter the picture by drawing or erasing stuff. Possible options are point, line and square. Thickness ranges from 1 to 20 and defines the pixel width of line and point.')
+                    ui.label('Fill will create a new picture and show it. The red area defines the drivable area of the robot.')
+                    ui.label('Cut allows to decrease the size of the image. Show the cutted image with the button and if it is correct, save it with click to the other button.')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                        ui.button('Back', on_click=stepper.previous).props('flat')
+                with ui.step('Parameter'):
+                    ui.label('Set parameters for the yaml-file representation. Resolution is set in the Download-page.')
+                    ui.label('Values are directly bound to a data structure and thus automatically saved')
+                    ui.label('You need to visit this page at least once.')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                        ui.button('Back', on_click=stepper.previous).props('flat')
+                with ui.step('Download'):
+                    ui.label('Here, you can create the pgm-file based on your processed image.')
+                    ui.label(' If it isn\'t directly grayscale, you can change the threshold (range 0 to 255). The higher the value, the more colored pixels are recognized as obstacles.')
+                    ui.label('You also need to compute the resolution by drawing a line on the map and enter the measured length in meters into the textbox. If the computed resolution is sensible, confirm the values and download both pgm and yaml-file by clicking the button.')
+                    with ui.stepper_navigation():
+                        ui.button('Next', on_click=stepper.next)
+                        ui.button('Back', on_click=stepper.previous).props('flat')     
+                with ui.step('Quality'):
+                    ui.label('Here, different quality metrics are displayed. Currently, only the filled area and the area of obstacles are displayed.')
+                    ui.label('If Fill or create pgm wasn\'t called yet, the respective value is 0.')
+                    with ui.stepper_navigation():
+                        ui.button('Back', on_click=stepper.previous).props('flat')                                
+        
         # this places the content which should be displayed
         router.frame().classes('w-full p-4 bg-gray-100')
         
@@ -196,9 +195,11 @@ def download_page_layout() -> None:
 async def create_pgm() -> None:
     thresh = preparation_parameters.pgm_threshold
     yaml_string = to_yaml_str(yaml_parameters)
-    await mc.convert_to_pgm(thresh, yaml_string)
-    ui.notify(f'pgm created with threshold set to {thresh}, check file {pgm_path} before downloading')
-
+    async with httpx.AsyncClient() as client:
+        response = await client.post('http://localhost:8000/convertToPgm', params={'thresh': thresh, 'yaml_string': yaml_string})
+        ui.notify(f'pgm created with threshold set to {thresh}, check file {pgm_path} before downloading')
+        return response
+    
 async def handle_length(e: events.MouseEventArguments) -> None:
     """sets the length of the data structure by measuring the distance between mousedown and mouseup event
         mousedown sets start point and mouseevent sets endpoint
@@ -268,10 +269,11 @@ async def compute_filled_percentage() -> None:
     """
     global quality_parameters
     try:
-        filled_area_response = await qc.computeFilledAreaPercentage()
+        async with httpx.AsyncClient() as client:
+            filled_area_response = await client.get('http://localhost:8000/filledAreaPercentage')
         if filled_area_response.status_code == 200:
             try:
-                    filled_response_dict = json.loads(filled_area_response.body)  # Parse the JSON string into a dictionary
+                    filled_response_dict = json.loads(filled_area_response.content)  # Parse the JSON string into a dictionary
                     if isinstance(filled_response_dict, dict):  # Ensure it's a dictionary
                         quality_parameters.percentage_filled_area = filled_response_dict.get('filled_area_ratio')
                         quality_parameters.percentage_filled_area = quality_parameters.percentage_filled_area.__round__(4)
@@ -284,7 +286,7 @@ async def compute_filled_percentage() -> None:
         elif filled_area_response.status_code == 400:
             ui.notify('Fill-function was never called, the filled area thus cannot be computed')
         else:    
-            ui.notify(f"Error: {filled_area_response.body}")
+            ui.notify(f"Error: {filled_area_response.content}")
     except HTTPException:
         ui.notify(f'Exception occured')
         
@@ -294,10 +296,11 @@ async def compute_wall_percentage() -> None:
     Notifies if errors occur in the backend.
     """
     global quality_parameters
-    filled_wall_response = await qc.computePercentageWalls()
+    async with httpx.AsyncClient() as client:
+        filled_wall_response = await client.get('http://localhost:8000/blackPixelPercentage')
     if filled_wall_response.status_code == 200:
         try:
-                wall_response_dict = json.loads(filled_wall_response.body)  # Parse the JSON string into a dictionary
+                wall_response_dict = json.loads(filled_wall_response.content)  # Parse the JSON string into a dictionary
                 if isinstance(wall_response_dict, dict):  # Ensure it's a dictionary
                     quality_parameters.percentage_walls = wall_response_dict.get('wall_ratio')
                     quality_parameters.percentage_walls = quality_parameters.percentage_walls.__round__(4)
@@ -310,7 +313,7 @@ async def compute_wall_percentage() -> None:
     elif filled_wall_response.status_code == (400 or 404):
         ui.notify('A pgm image was never created, the percentage of the wall thus cannot be computed')
     else:    
-        ui.notify(f"Error: {filled_wall_response.body}")
+        ui.notify(f"Error: {filled_wall_response.content}")
 
 
 def process_image_name(e: events.UploadEventArguments) -> bool:
@@ -390,28 +393,26 @@ async def download_map_files() -> None:
     global yaml_parameters, complete_yaml, complete_picture
     
     yaml_string = to_yaml_str(yaml_parameters)
-    ui.notify(yaml_string)
-    response = await mc.write_yaml(yaml_string)
-    
+    async with httpx.AsyncClient() as client:
+        response = await client.get('http://localhost:8000/download_files', params={'yaml_string': yaml_string}) 
+
     if response.status_code == 200:
             try:
-                response_body = response.body  # Get the response body as a string
-                response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
-                if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
-                    ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
-                    print(response_body_dict)  # Print the dictionary of the JSON response
-                    ui.download(f'{UPLOAD_DIR}/{complete_pgm}')
-                    ui.download(f'{UPLOAD_DIR}/{complete_yaml}')
-                else:
-                    ui.notify("Error: Response is not a dictionary")
+                ui.notify(f'File downloaded: {yaml_string}')
+                ui.download(f'{UPLOAD_DIR}/{complete_pgm}')
+                ui.download(f'{UPLOAD_DIR}/{complete_yaml}')                
             except json.JSONDecodeError:
                 ui.notify("Error: Failed to decode JSON response")
     else:
-        ui.notify(f"Error: {response_body}")
+        ui.notify(f"Error occured: {response.status_code}")
 
 def no_pic() -> None:
     ui.notify("No picture uploaded, please go to Upload and upload a file")
     
+async def copyCutImage() -> None:
+    async with httpx.AsyncClient() as client:
+        response = await client.post('http://localhost:8000/copyCutImage') 
+
 def pencil() -> None:
     global ii, preparation_parameters, image_path
     if visibility:
@@ -427,7 +428,7 @@ def pencil() -> None:
             ui.toggle(['point', 'line', 'square', 'fill', 'cut'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.PENCIL)
             
             ui.button('Show cut image', on_click=showCutImage)
-            ui.button('Copy cut image to real image', on_click=mp.copyCutImage)
+            ui.button('Copy cut image to real image', on_click=copyCutImage)
         ii = ui.interactive_image(image_path, on_mouse=handle_pencil, events=['mousedown', 'mouseup'],cross='red')
     else:
         no_pic
@@ -446,7 +447,7 @@ def eraser() -> None:
             ui.toggle(['point', 'line', 'square', 'fill', 'cut'], on_change=reload_image).bind_value(preparation_parameters, 'preparation_type').classes('border p-1').tooltip(tooltip.ERASER)
             
             ui.button('Show cut image', on_click=showCutImage)
-            ui.button('Copy cut image to real image', on_click=mp.copyCutImage)
+            ui.button('Copy cut image to real image', on_click=copyCutImage)
         ii = ui.interactive_image(image_path, on_mouse=handle_eraser, events=['mousedown', 'mouseup'],cross='red')
     else:
         no_pic()    
@@ -467,10 +468,11 @@ async def on_file_upload(e: events.UploadEventArguments) -> None:
     
     if process_image_name(e):
     # access events via the event.Eventtype stuff and send content of the event to backend
-        response = await mp.save_file(e.content.read(), e.name)
+        async with httpx.AsyncClient() as client:
+            response = await client.post('http://localhost:8000/save', files={'file': (e.name, e.content.read(), 'application/octet-stream')})
         if response.status_code == 200:
             try:
-                response_body = response.body  # Get the response body as a string
+                response_body = response.content  # Get the response body as a string
                 response_body_dict = json.loads(response_body)  # Parse the JSON string into a dictionary
                 if isinstance(response_body_dict, dict):  # Ensure it's a dictionary
                     ui.notify(f"File uploaded: {response_body_dict.get('message', 'No message provided')} at {response_body_dict['location']}")
@@ -511,7 +513,10 @@ async def pencil_line(e: events.MouseEventArguments) -> None:
     await clicked.wait()
     if start_point and end_point:
         thickness = preparation_parameters.thickness
-        await mp.addLine(start_point, end_point, thickness)
+        
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/pencil_line', 
+                              json={'start_point': start_point, 'end_point': end_point, 'thickness': thickness})
     else:
         ui.notify('start and endpoint not set correctly')
 
@@ -526,7 +531,8 @@ async def pencil_point(e: events.MouseEventArguments) -> None:
         x = e.image_x
         y = e.image_y
         thickness = preparation_parameters.thickness
-        await mp.addPoint(x,y, thickness)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/pencil_point', json={'x': x, 'y': y, 'thickness': thickness})
 
 async def pencil_square(e: events.MouseEventArguments) -> None:
     """draws a square specified by two points, defined by mousedown and mouseup event
@@ -543,7 +549,8 @@ async def pencil_square(e: events.MouseEventArguments) -> None:
         clicked.set()
     await clicked.wait()
     if start_point and end_point:
-        await mp.drawSquare(start_point, end_point)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/draw_square', json={'start_point': start_point, 'end_point': end_point})
     else:
         ui.notify('start and endpoint not set correctly')
 
@@ -563,7 +570,8 @@ async def cut_out(e: events.MouseEventArguments) -> None:
     await clicked.wait()
     if start_point and end_point:
         ui.notify(f'start point is {start_point}, end point is {end_point}')
-        await mp.cutOut(start_point, end_point)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/cut_out', json={'start_point': start_point, 'end_point': end_point})
 
     else:
         ui.notify('start and endpoint not set correctly')
@@ -578,7 +586,8 @@ async def fill_area(e: events.MouseEventArguments) -> None:
     if e.type == 'mousedown':
         x = e.image_x
         y = e.image_y
-        await mp.fillArea(x,y)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/fill_area', json={'x': x, 'y': y})
 
 # clicked.set needs to be called, else clicked.wait() blocks the routine and mp.addPoint is not reached    
 async def handle_pencil(e: events.MouseEventArguments) -> None:
@@ -635,7 +644,8 @@ async def erase_line(e: events.MouseEventArguments) -> None:
     await clicked.wait()
     if start_point and end_point:
         thickness = preparation_parameters.thickness
-        await mp.eraseLine(start_point, end_point, thickness)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/eraser_line', json={'start_point': start_point, 'end_point': end_point, 'thickness': thickness})
     else:
         ui.notify('start and endpoint not set correctly')
       
@@ -649,7 +659,8 @@ async def erase_point(e: events.MouseEventArguments) -> None:
         x = e.image_x
         y = e.image_y
         thickness = preparation_parameters.thickness
-        await mp.erasePoint(x,y, thickness)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/eraser_click', json={'x': x, 'y': y, 'thickness': thickness})
 
 async def erase_square(e: events.MouseEventArguments) -> None:
     """Deletes a square specified by two points, defined by mousedown and mouseup event
@@ -666,7 +677,8 @@ async def erase_square(e: events.MouseEventArguments) -> None:
         clicked.set()
     await clicked.wait()
     if start_point and end_point:
-        await mp.eraseSquare(start_point, end_point)
+        async with httpx.AsyncClient() as client:
+            await client.post('http://localhost:8000/eraser_square', json={'start_point': start_point, 'end_point': end_point})
     else:
         ui.notify('start and endpoint not set correctly')
 
